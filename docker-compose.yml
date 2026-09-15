@@ -1,0 +1,8 @@
+services:
+  nostr-second-brain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    restart: unless-stopped

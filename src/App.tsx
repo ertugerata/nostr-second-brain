@@ -90,7 +90,7 @@ export function App() {
       await event.sign();
 
       if (nostrService.ndk.cacheAdapter) {
-        await nostrService.ndk.cacheAdapter.saveEvent(event);
+        await nostrService.ndk.cacheAdapter.setEvent(event, []);
       }
 
       setNotes((prev) => {

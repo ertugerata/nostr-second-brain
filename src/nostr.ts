@@ -44,7 +44,11 @@ export class NostrService {
       this.ndk.signer = NDKPrivateKeySigner.generate();
     }
 
-    await this.ndk.connect();
+    try {
+      await this.ndk.connect(2000);
+    } catch (e) {
+      console.warn("Relay bağlantı zaman aşımı:", e);
+    }
     this.isConnected = true;
   }
 }
