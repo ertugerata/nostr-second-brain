@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
@@ -18,10 +18,24 @@ export function App() {
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [activeTab, setActiveTab] = useState<"editor" | "graph" | "settings">("editor");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("theme") as "light" | "dark") || "light";
+  });
 
   const [notes, setNotes] = useState<Map<string, NoteItem>>(new Map());
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [statusText, setStatusText] = useState("Sistem hazır.");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
 
   useEffect(() => {
     async function init() {
@@ -150,13 +164,49 @@ export function App() {
     });
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text !== undefined) {
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setSlug(fileNameWithoutExt);
+        setContent(text);
+        setActiveTab("editor");
+        setStatusText(`"${file.name}" dosyası aktarıldı. Düzenleyip yayınlayabilirsiniz.`);
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input value so same file can be re-selected if needed
+    e.target.value = "";
+  };
+
   return (
     <div className="app-layout">
       {/* Sol Menü / Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>🧠 Nostr Brain</h2>
-          <button onClick={handleNewNote} className="new-btn">+ Yeni Not</button>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <input
+              type="file"
+              accept=".md,.markdown,.txt"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: "none" }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="import-btn"
+              title="Bilgisayardan .md dosyası seç"
+            >
+              📂 MD Yükle
+            </button>
+            <button onClick={handleNewNote} className="new-btn">+ Yeni Not</button>
+          </div>
         </div>
 
         <div className="nav-tabs">
@@ -187,14 +237,7 @@ export function App() {
               <button
                 onClick={() => exportAllNotesAsJson(notes)}
                 title="Tüm notları dışarı aktar (JSON)"
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  color: "#2563eb",
-                  fontWeight: 600,
-                }}
+                className="export-all-btn"
               >
                 📥 Tümünü Aktar
               </button>
@@ -218,6 +261,13 @@ export function App() {
         <header className="top-bar">
           <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button
+              onClick={toggleTheme}
+              className="theme-toggle-btn"
+              title="Koyu / Açık Tema Değiştir"
+            >
+              {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+            </button>
             {KeyStoreService.hasStoredKey() && (
               <button
                 onClick={() => {
@@ -268,16 +318,6 @@ export function App() {
                       type="button"
                       onClick={handleExportCurrentNote}
                       className="export-btn"
-                      style={{
-                        backgroundColor: "#f1f5f9",
-                        color: "#334155",
-                        border: "1px solid #cbd5e1",
-                        padding: "10px 16px",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        transition: "background 0.2s",
-                      }}
                     >
                       📥 Dışarı Aktar (.md)
                     </button>
@@ -295,8 +335,8 @@ export function App() {
               {content.trim() ? (
                 <WikiContent content={content} onNavigate={handleSelectNote} />
               ) : (
-                <p style={{ color: "#94a3b8", fontSize: "14px", fontStyle: "italic" }}>
-                  Önizleme için içeriği girin...
+                <p style={{ color: "var(--text-muted)", fontSize: "14px", fontStyle: "italic" }}>
+                  Önizleme için içeriği girin veya bir .md dosyası yükleyin...
                 </p>
               )}
             </div>

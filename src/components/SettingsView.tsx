@@ -64,7 +64,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     }
 
     try {
-      // Hex formatında verilmişse nsec'e dönüştür
       if (/^[0-9a-fA-F]{64}$/.test(formattedNsec)) {
         const bytes = new Uint8Array(
           formattedNsec.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
@@ -85,7 +84,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       setPassphrase("");
       setConfirmPassphrase("");
 
-      // Update public key / nsec in UI
       const user = await nostrService.ndk.signer!.user();
       setCurrentPubkey(user.pubkey);
       setCurrentNpub(nip19.npubEncode(user.pubkey));
@@ -109,7 +107,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   return (
     <div className="settings-container" style={{ padding: "20px", maxWidth: "700px" }}>
       <h2>⚙️ Ayarlar & Anahtar Yönetimi</h2>
-      <p style={{ color: "#64748b", marginBottom: "20px", fontSize: "14px" }}>
+      <p style={{ color: "var(--text-muted)", marginBottom: "20px", fontSize: "14px" }}>
         Nostr gizli anahtarınızı (Secret Key / nsec) güvenli bir şekilde tanımlayın veya güncelleyin.
         Anahtarınız NIP-49 standartlarına uygun şekilde kasa parolanız ile şifrelenerek saklanır.
       </p>
@@ -121,9 +119,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
             borderRadius: "6px",
             marginBottom: "20px",
             fontSize: "14px",
-            backgroundColor: statusMsg.isError ? "#fef2f2" : "#f0fdf4",
-            color: statusMsg.isError ? "#991b1b" : "#166534",
-            border: `1px solid ${statusMsg.isError ? "#fecaca" : "#bbf7d0"}`,
+            backgroundColor: statusMsg.isError ? "var(--bg-secondary)" : "var(--bg-secondary)",
+            color: statusMsg.isError ? "#dc2626" : "#16a34a",
+            border: `1px solid ${statusMsg.isError ? "#fca5a5" : "#86efac"}`,
           }}
         >
           {statusMsg.text}
@@ -133,21 +131,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       {/* Aktif Hesap Bilgileri */}
       <div
         style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-color)",
           borderRadius: "8px",
           padding: "16px",
           marginBottom: "24px",
         }}
       >
-        <h3 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }}>
+        <h3 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", color: "var(--text-primary)" }}>
           👤 Aktif Nostr Kimliği
         </h3>
 
         {currentNpub && (
           <div style={{ marginBottom: "10px" }}>
-            <label style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Public Key (npub):</label>
-            <code style={{ fontSize: "13px", wordBreak: "break-all", background: "#f8fafc", padding: "4px 8px", borderRadius: "4px", display: "block" }}>
+            <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Public Key (npub):</label>
+            <code style={{ fontSize: "13px", wordBreak: "break-all", background: "var(--code-bg)", color: "var(--text-primary)", padding: "4px 8px", borderRadius: "4px", display: "block" }}>
               {currentNpub}
             </code>
           </div>
@@ -155,8 +153,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
         {currentPubkey && (
           <div style={{ marginBottom: "10px" }}>
-            <label style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Public Key (Hex):</label>
-            <code style={{ fontSize: "13px", wordBreak: "break-all", background: "#f8fafc", padding: "4px 8px", borderRadius: "4px", display: "block" }}>
+            <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Public Key (Hex):</label>
+            <code style={{ fontSize: "13px", wordBreak: "break-all", background: "var(--code-bg)", color: "var(--text-primary)", padding: "4px 8px", borderRadius: "4px", display: "block" }}>
               {currentPubkey}
             </code>
           </div>
@@ -164,15 +162,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
         {currentNsec && (
           <div>
-            <label style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Mevcut Secret Key (nsec):</label>
+            <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Mevcut Secret Key (nsec):</label>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
-              <code style={{ fontSize: "13px", wordBreak: "break-all", background: "#f8fafc", padding: "4px 8px", borderRadius: "4px", flex: 1 }}>
+              <code style={{ fontSize: "13px", wordBreak: "break-all", background: "var(--code-bg)", color: "var(--text-primary)", padding: "4px 8px", borderRadius: "4px", flex: 1 }}>
                 {showSecretKey ? currentNsec : "••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"}
               </code>
               <button
                 type="button"
                 onClick={() => setShowSecretKey(!showSecretKey)}
-                style={{ padding: "4px 10px", fontSize: "12px", cursor: "pointer", border: "1px solid #cbd5e1", borderRadius: "4px", background: "#f1f5f9" }}
+                style={{ padding: "4px 10px", fontSize: "12px", cursor: "pointer", border: "1px solid var(--input-border)", borderRadius: "4px", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
               >
                 {showSecretKey ? "Gizle" : "Göster"}
               </button>
@@ -181,8 +179,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
         )}
 
         {hasStoredKey && (
-          <div style={{ marginTop: "16px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
-            <span style={{ fontSize: "12px", color: "#166534", background: "#dcfce7", padding: "4px 8px", borderRadius: "4px" }}>
+          <div style={{ marginTop: "16px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+            <span style={{ fontSize: "12px", color: "#16a34a", background: "var(--bg-secondary)", padding: "4px 8px", borderRadius: "4px" }}>
               🔒 NIP-49 Şifrelenmiş Anahtar Cihazda Saklanıyor
             </span>
             <button
@@ -205,22 +203,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
         )}
       </div>
 
-      {/* Secret Key Tanımlama / Güncelleme Formu */}
+      {/* Secret Key Form */}
       <div
         style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-color)",
           borderRadius: "8px",
           padding: "16px",
         }}
       >
-        <h3 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }}>
+        <h3 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", color: "var(--text-primary)" }}>
           🔑 Secret Key (Gizli Anahtar) Tanımla / Güncelle
         </h3>
 
         <form onSubmit={handleSaveKey} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px", color: "var(--text-primary)" }}>
               Nostr Secret Key (nsec1... veya 64 karakter Hex):
             </label>
             <input
@@ -232,7 +230,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
                 width: "100%",
                 padding: "10px",
                 fontSize: "14px",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--input-border)",
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
                 borderRadius: "6px",
                 boxSizing: "border-box",
               }}
@@ -241,7 +241,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px", color: "var(--text-primary)" }}>
               Kasa Parolası (NIP-49 Şifreleme için):
             </label>
             <input
@@ -253,7 +253,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
                 width: "100%",
                 padding: "10px",
                 fontSize: "14px",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--input-border)",
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
                 borderRadius: "6px",
                 boxSizing: "border-box",
               }}
@@ -262,7 +264,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px", color: "var(--text-primary)" }}>
               Kasa Parolası Tekrarı:
             </label>
             <input
@@ -274,7 +276,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
                 width: "100%",
                 padding: "10px",
                 fontSize: "14px",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--input-border)",
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
                 borderRadius: "6px",
                 boxSizing: "border-box",
               }}
@@ -286,7 +290,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
             type="submit"
             style={{
               padding: "10px 16px",
-              background: "#0f172a",
+              background: "var(--accent-blue)",
               color: "#ffffff",
               border: "none",
               borderRadius: "6px",
