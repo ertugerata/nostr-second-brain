@@ -36,7 +36,9 @@ nostr-second-brain/
 │   │   └── SimpleGraphView.tsx # Notlar arası ilişki grafiği (Graph View) görselleştiricisi
 │   └── utils/
 │       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
-│       └── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
+│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
+│       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
+│       └── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma fonksiyonları
 ├── Dockerfile              # Docker görsel (image) yapılandırması
 ├── docker-compose.yml      # Docker Compose servis yapılandırması
 ├── .dockerignore           # Docker derleme harici tutulan dosyalar
@@ -44,6 +46,22 @@ nostr-second-brain/
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
+```
+
+---
+
+## 🔄 Veri Akış Şeması
+
+```text
+[Açık Not]   ──> kind: 30818 ──> [Relay] (Yazar, İçerik, Tarih HERKESE AÇIK)
+
+[Gizli Not]  ──> Rumor (k:30818)
+                     │
+                     ▼ (NIP-44 Şifreleme)
+                 Seal (k:13)
+                     │
+                     ▼ (Ephemeral Key + Fake Timestamp + NIP-44)
+                 Gift Wrap (k:1059) ──> [Relay] (Dışarıdan sadece rastgele key ve k:1059 görünür)
 ```
 
 ---
