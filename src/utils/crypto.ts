@@ -1,4 +1,4 @@
-import { nip44, generateSecretKey, getPublicKey, finalizeEvent, NDKEvent } from "nostr-tools";
+import { nip44, generateSecretKey, getPublicKey, finalizeEvent } from "nostr-tools";
 
 // Not İçeriğini NIP-44 ile Kendi Pubkey'inize Şifreleme
 export async function encryptContent(content: string, secretKey: Uint8Array): Promise<string> {

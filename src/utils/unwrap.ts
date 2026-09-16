@@ -1,9 +1,7 @@
-import { nip44, getPublicKey } from "nostr-tools";
+import { nip44 } from "nostr-tools";
 
 export function unwrapGift(giftWrapEvent: any, userSecretKey: Uint8Array): any | null {
   try {
-    const userPubkey = getPublicKey(userSecretKey);
-
     // 1. Zarfı (Kind 1059) Ephemeral Pubkey ile Açma
     const wrapConversationKey = nip44.v2.utils.getConversationKey(userSecretKey, giftWrapEvent.pubkey);
     const sealJson = nip44.v2.decrypt(giftWrapEvent.content, wrapConversationKey);
