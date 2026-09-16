@@ -1,5 +1,6 @@
 import NDK, { NDKNip07Signer, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
+import { KeyStoreService } from "./utils/keyStore";
 
 const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
@@ -60,6 +61,30 @@ export class NostrService {
       console.warn("Relay bağlantı zaman aşımı:", e);
     }
     this.isConnected = true;
+  }
+
+  /**
+   * NIP-49 Parolası ile Oturum Açma
+   */
+  public async loginWithPassphrase(passphrase: string): Promise<boolean> {
+    try {
+      // 1. NIP-49 ile saklanan anahtarı çöz
+      const secretKey = KeyStoreService.unlockKey(passphrase);
+      this.userSecretKey = secretKey;
+
+      // 2. NDK için Signer oluştur (Uint8Array cinsinden hex string'e çevirerek)
+      const hexKey = Array.from(secretKey)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      this.ndk.signer = new NDKPrivateKeySigner(hexKey);
+      await this.ndk.connect();
+      this.isConnected = true;
+      return true;
+    } catch (error) {
+      console.error("NIP-49 Parola doğrulama hatası:", error);
+      throw new Error("Hatalı parola veya bozuk anahtar verisi!");
+    }
   }
 
   public getSecretKey(): Uint8Array {
