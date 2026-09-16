@@ -27,25 +27,30 @@
 
 ```text
 nostr-second-brain/
-├── src/
-│   ├── main.tsx             # React giriş noktası
-│   ├── App.tsx              # Ana uygulama bileşeni (State, Offline Sync, Formlar)
-│   ├── nostr.ts            # NDK ve Dexie IndexedDB cache yapılandırması
-│   ├── components/
-│   │   ├── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
-│   │   └── SimpleGraphView.tsx # Notlar arası ilişki grafiği (Graph View) görselleştiricisi
-│   └── utils/
-│       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
-│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
-│       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
-│       └── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma fonksiyonları
-├── Dockerfile              # Docker görsel (image) yapılandırması
-├── docker-compose.yml      # Docker Compose servis yapılandırması
-├── .dockerignore           # Docker derleme harici tutulan dosyalar
-├── index.html              # HTML şablonu
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── index.html
+├── package-lock.json
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+├── README.md
+└── src/
+    ├── App.tsx
+    ├── main.tsx
+    ├── nostr.ts
+    ├── components/
+    │   ├── KeyLoginForm.tsx
+    │   ├── SimpleGraphView.tsx
+    │   └── WikiContent.tsx
+    └── utils/
+        ├── crypto.ts
+        ├── graphBuilder.ts
+        ├── keyStore.ts
+        ├── unwrap.ts
+        └── wikilink.ts
 ```
 
 ---
