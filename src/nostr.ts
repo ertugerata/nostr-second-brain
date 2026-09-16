@@ -29,6 +29,8 @@ export class NostrService {
     return NostrService.instance;
   }
 
+  private userSecretKey?: Uint8Array;
+
   public async connect(): Promise<void> {
     if (this.isConnected) return;
 
@@ -41,7 +43,15 @@ export class NostrService {
     }
 
     if (!this.ndk.signer) {
-      this.ndk.signer = NDKPrivateKeySigner.generate();
+      const privateKeySigner = NDKPrivateKeySigner.generate();
+      this.ndk.signer = privateKeySigner;
+      if (privateKeySigner.privateKey) {
+        const hex = privateKeySigner.privateKey;
+        const match = hex.match(/.{1,2}/g);
+        if (match) {
+          this.userSecretKey = new Uint8Array(match.map((byte) => parseInt(byte, 16)));
+        }
+      }
     }
 
     try {
@@ -50,6 +60,30 @@ export class NostrService {
       console.warn("Relay bağlantı zaman aşımı:", e);
     }
     this.isConnected = true;
+  }
+
+  public getSecretKey(): Uint8Array {
+    if (this.userSecretKey) {
+      return this.userSecretKey;
+    }
+    if (this.ndk.signer && (this.ndk.signer as NDKPrivateKeySigner).privateKey) {
+      const hex = (this.ndk.signer as NDKPrivateKeySigner).privateKey!;
+      const match = hex.match(/.{1,2}/g);
+      if (match) {
+        this.userSecretKey = new Uint8Array(match.map((byte) => parseInt(byte, 16)));
+        return this.userSecretKey;
+      }
+    }
+    // Fallback if no private key is directly accessible (e.g., NIP-07)
+    let stored = localStorage.getItem("nostr_local_secret_key");
+    if (!stored) {
+      const newKey = crypto.getRandomValues(new Uint8Array(32));
+      stored = Array.from(newKey).map(b => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem("nostr_local_secret_key", stored);
+    }
+    const match = stored.match(/.{1,2}/g)!;
+    this.userSecretKey = new Uint8Array(match.map((byte) => parseInt(byte, 16)));
+    return this.userSecretKey;
   }
 }
 

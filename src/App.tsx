@@ -5,6 +5,8 @@ import { WikiContent } from "./components/WikiContent";
 import { SimpleGraphView } from "./components/SimpleGraphView";
 import { extractWikilinks, slugify } from "./utils/wikilink";
 import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
+import { createGiftWrap } from "./utils/crypto";
+import { unwrapGift } from "./utils/unwrap";
 
 interface Note {
   id: string;
@@ -18,6 +20,7 @@ export function App() {
   const [ready, setReady] = useState(false);
   const [slug, setSlug] = useState("ikinci-beyin-notu");
   const [content, setContent] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [statusText, setStatusText] = useState("Başlatılıyor...");
@@ -29,11 +32,35 @@ export function App() {
       setStatusText("Önbellek ve Relay bağlantısı aktif.");
 
       const sub = nostrService.ndk.subscribe(
-        { kinds: [30818 as number], limit: 50 },
+        { kinds: [30818 as number, 1059 as number], limit: 50 },
         { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: false }
       );
 
       sub.on("event", (event: NDKEvent) => {
+        if (event.kind === 1059) {
+          try {
+            const userSecretKey = nostrService.getSecretKey();
+            const rumor = unwrapGift(event, userSecretKey);
+            if (rumor) {
+              const noteSlug = rumor.tags?.find((t: string[]) => t[0] === "d")?.[1] || "gizli-not";
+              setNotes((prevNotes) => {
+                const updated = new Map(prevNotes);
+                updated.set(noteSlug, {
+                  id: event.id,
+                  slug: noteSlug,
+                  content: rumor.content,
+                  createdAt: rumor.created_at || event.created_at!,
+                  pubkey: rumor.pubkey || event.pubkey,
+                });
+                return updated;
+              });
+            }
+          } catch (e) {
+            console.warn("Zarf açılamadı:", e);
+          }
+          return;
+        }
+
         const noteSlug = event.tagValue("d") || "untitled";
 
         setNotes((prevNotes) => {
@@ -65,55 +92,86 @@ export function App() {
     e.preventDefault();
     if (!content.trim() || !slug.trim()) return;
 
-    setStatusText("Not imzalanıyor ve kaydediliyor...");
-    const noteSlug = slugify(slug);
+    if (isPrivate) {
+      // Gizli Not Akışı (NIP-59 Gift Wrap)
+      setStatusText("Gizli not NIP-44 + NIP-59 ile zarflanıyor...");
 
-    try {
-      const event = new NDKEvent(nostrService.ndk);
-      event.kind = 30818;
-      event.content = content;
+      // NOT: Gerçek senaryoda NIP-49 ile yerel depolanan secretKey kullanılır.
+      const userSecretKey = nostrService.getSecretKey();
 
-      const links = extractWikilinks(content);
-      const userPubkey = nostrService.ndk.signer ? (await nostrService.ndk.signer.user()).pubkey : "";
+      const giftWrapEvent = createGiftWrap(content, userSecretKey);
 
-      const tags: string[][] = [
-        ["d", noteSlug],
-        ["title", slug],
-      ];
+      // Relay'lere Gift Wrap (kind: 1059) olarak yayınla
+      const ndkEvent = new NDKEvent(nostrService.ndk, giftWrapEvent);
+      await ndkEvent.publish();
 
-      links.forEach((link) => {
-        tags.push(["a", `30818:${userPubkey}:${link.target}`, "", "mention"]);
-      });
-
-      event.tags = tags;
-
-      await event.sign();
-
-      if (nostrService.ndk.cacheAdapter) {
-        await nostrService.ndk.cacheAdapter.setEvent(event, []);
-      }
-
+      const noteSlug = slugify(slug);
       setNotes((prev) => {
         const updated = new Map(prev);
         updated.set(noteSlug, {
-          id: event.id,
+          id: giftWrapEvent.id || "gw-" + Date.now(),
           slug: noteSlug,
-          content: event.content,
-          createdAt: event.created_at || Math.floor(Date.now() / 1000),
-          pubkey: event.pubkey,
+          content: content,
+          createdAt: giftWrapEvent.created_at || Math.floor(Date.now() / 1000),
+          pubkey: giftWrapEvent.pubkey,
         });
         return updated;
       });
 
-      event.publish().catch((err) => {
-        console.warn("Relay'e yayınlanamadı, yerelde saklandı:", err);
-      });
-
-      setStatusText("Not başarıyla kaydedildi!");
+      setStatusText("Gizli not zarflanıp relay'e gönderildi!");
       setContent("");
-    } catch (error) {
-      console.error("Kaydetme hatası:", error);
-      setStatusText("Hata oluştu!");
+    } else {
+      // Standart NIP-54 Public Not Akışı...
+      setStatusText("Not imzalanıyor ve kaydediliyor...");
+      const noteSlug = slugify(slug);
+
+      try {
+        const event = new NDKEvent(nostrService.ndk);
+        event.kind = 30818;
+        event.content = content;
+
+        const links = extractWikilinks(content);
+        const userPubkey = nostrService.ndk.signer ? (await nostrService.ndk.signer.user()).pubkey : "";
+
+        const tags: string[][] = [
+          ["d", noteSlug],
+          ["title", slug],
+        ];
+
+        links.forEach((link) => {
+          tags.push(["a", `30818:${userPubkey}:${link.target}`, "", "mention"]);
+        });
+
+        event.tags = tags;
+
+        await event.sign();
+
+        if (nostrService.ndk.cacheAdapter) {
+          await nostrService.ndk.cacheAdapter.setEvent(event, []);
+        }
+
+        setNotes((prev) => {
+          const updated = new Map(prev);
+          updated.set(noteSlug, {
+            id: event.id,
+            slug: noteSlug,
+            content: event.content,
+            createdAt: event.created_at || Math.floor(Date.now() / 1000),
+            pubkey: event.pubkey,
+          });
+          return updated;
+        });
+
+        event.publish().catch((err) => {
+          console.warn("Relay'e yayınlanamadı, yerelde saklandı:", err);
+        });
+
+        setStatusText("Not başarıyla kaydedildi!");
+        setContent("");
+      } catch (error) {
+        console.error("Kaydetme hatası:", error);
+        setStatusText("Hata oluştu!");
+      }
     }
   };
 
@@ -156,6 +214,18 @@ export function App() {
             placeholder="Notunuzu yazın..."
             required
           />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            id="isPrivate"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+          />
+          <label htmlFor="isPrivate" style={{ cursor: "pointer", userSelect: "none" }}>
+            Gizli Not Mu? (NIP-44 + NIP-59 Gift Wrap)
+          </label>
         </div>
 
         <button type="submit" style={{ padding: "10px 20px", cursor: "pointer", background: "#0f172a", color: "#fff", border: "none", borderRadius: 4 }}>
