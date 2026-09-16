@@ -4,18 +4,12 @@ import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
 import { SimpleGraphView } from "./components/SimpleGraphView";
 import { KeyLoginForm } from "./components/KeyLoginForm";
+import { SettingsView } from "./components/SettingsView";
 import { extractWikilinks, slugify } from "./utils/wikilink";
 import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
 import { KeyStoreService } from "./utils/keyStore";
-import "./App.css"; // CSS Dosyası Entegre Edildi
-
-interface Note {
-  id: string;
-  slug: string;
-  content: string;
-  createdAt: number;
-  pubkey: string;
-}
+import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
+import "./App.css";
 
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,9 +17,9 @@ export function App() {
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [activeTab, setActiveTab] = useState<"editor" | "graph">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "graph" | "settings">("editor");
 
-  const [notes, setNotes] = useState<Map<string, Note>>(new Map());
+  const [notes, setNotes] = useState<Map<string, NoteItem>>(new Map());
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [statusText, setStatusText] = useState("Sistem hazır.");
 
@@ -145,6 +139,17 @@ export function App() {
     setActiveTab("editor");
   };
 
+  const handleExportCurrentNote = () => {
+    if (!content.trim()) return;
+    exportNoteAsMarkdown({
+      id: notes.get(slug)?.id || "",
+      slug: slugify(slug),
+      content,
+      createdAt: notes.get(slug)?.createdAt || Math.floor(Date.now() / 1000),
+      pubkey: notes.get(slug)?.pubkey || "",
+    });
+  };
+
   return (
     <div className="app-layout">
       {/* Sol Menü / Sidebar */}
@@ -165,12 +170,36 @@ export function App() {
             className={`tab-btn ${activeTab === "graph" ? "active" : ""}`}
             onClick={() => setActiveTab("graph")}
           >
-            🕸️ Graph View
+            🕸️ Graph
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            ⚙️ Ayarlar
           </button>
         </div>
 
         <div className="note-list">
-          <div className="section-title">NOTLARIM ({notes.size})</div>
+          <div className="section-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: "8px" }}>
+            <span className="section-title">NOTLARIM ({notes.size})</span>
+            {notes.size > 0 && (
+              <button
+                onClick={() => exportAllNotesAsJson(notes)}
+                title="Tüm notları dışarı aktar (JSON)"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "#2563eb",
+                  fontWeight: 600,
+                }}
+              >
+                📥 Tümünü Aktar
+              </button>
+            )}
+          </div>
           {Array.from(notes.values()).map((note) => (
             <div
               key={note.id}
@@ -188,17 +217,19 @@ export function App() {
       <main className="main-content">
         <header className="top-bar">
           <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
-          {KeyStoreService.hasStoredKey() && (
-            <button
-              onClick={() => {
-                KeyStoreService.clearStoredKey();
-                setIsAuthenticated(false);
-              }}
-              className="logout-btn"
-            >
-              🔒 Kasayı Kilitle
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {KeyStoreService.hasStoredKey() && (
+              <button
+                onClick={() => {
+                  KeyStoreService.clearStoredKey();
+                  setIsAuthenticated(false);
+                }}
+                className="logout-btn"
+              >
+                🔒 Kasayı Kilitle
+              </button>
+            )}
+          </div>
         </header>
 
         {activeTab === "editor" && (
@@ -214,7 +245,7 @@ export function App() {
               />
 
               <textarea
-                placeholder="Not içeriğinizi yazın... [[Diğer Not]] referansı verebilirsiniz."
+                placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="content-input"
@@ -231,18 +262,44 @@ export function App() {
                   🔒 NIP-44/59 Gizli Not (Gift Wrap)
                 </label>
 
-                <button type="submit" className="save-btn">
-                  Kaydet & Imzala
-                </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {content.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentNote}
+                      className="export-btn"
+                      style={{
+                        backgroundColor: "#f1f5f9",
+                        color: "#334155",
+                        border: "1px solid #cbd5e1",
+                        padding: "10px 16px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      📥 Dışarı Aktar (.md)
+                    </button>
+                  )}
+
+                  <button type="submit" className="save-btn">
+                    Kaydet & İmzala
+                  </button>
+                </div>
               </div>
             </form>
 
-            {notes.has(slug) && (
-              <div className="preview-box">
-                <div className="preview-title">ÖNİZLEME (NIP-54 Rendered)</div>
-                <WikiContent content={notes.get(slug)!.content} onNavigate={handleSelectNote} />
-              </div>
-            )}
+            <div className="preview-box">
+              <div className="preview-title">ÖNİZLEME (Markdown / NIP-54 Rendered)</div>
+              {content.trim() ? (
+                <WikiContent content={content} onNavigate={handleSelectNote} />
+              ) : (
+                <p style={{ color: "#94a3b8", fontSize: "14px", fontStyle: "italic" }}>
+                  Önizleme için içeriği girin...
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -250,6 +307,14 @@ export function App() {
           <div className="graph-container">
             <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} />
           </div>
+        )}
+
+        {activeTab === "settings" && (
+          <SettingsView
+            onKeyUpdated={() => {
+              setIsAuthenticated(true);
+            }}
+          />
         )}
       </main>
     </div>
