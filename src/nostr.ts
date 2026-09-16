@@ -87,6 +87,65 @@ export class NostrService {
     }
   }
 
+  /**
+   * Aktif olarak bağlı olan relay sayısını döner.
+   */
+  public getActiveConnectionCount(): number {
+    if (!this.ndk || !this.ndk.pool) return 0;
+    return Array.from(this.ndk.pool.relays.values()).filter((relay) => relay.connected).length;
+  }
+
+  /**
+   * Bağlı olan relay adreslerinin listesini döner.
+   */
+  public getConnectedRelays(): string[] {
+    if (!this.ndk || !this.ndk.pool) return [];
+    return Array.from(this.ndk.pool.relays.values())
+      .filter((relay) => relay.connected)
+      .map((relay) => relay.url);
+  }
+
+  /**
+   * Tüm relay'lerin URL ve bağlantı durumlarını liste olarak döner.
+   */
+  public getRelayStatuses(): { url: string; connected: boolean }[] {
+    if (!this.ndk || !this.ndk.pool) return [];
+    return Array.from(this.ndk.pool.relays.values()).map((relay) => ({
+      url: relay.url,
+      connected: relay.connected,
+    }));
+  }
+
+  /**
+   * Relay bağlantı durumlarında değişiklik olduğunda tetiklenecek dinleyici ekler.
+   */
+  public onRelayStatusChange(callback: () => void): () => void {
+    if (!this.ndk || !this.ndk.pool) return () => {};
+
+    const events = [
+      "relay:connect",
+      "relay:disconnect",
+      "relay:ready",
+      "relay:connecting",
+      "connect",
+      "flapping"
+    ];
+
+    const handler = () => {
+      callback();
+    };
+
+    events.forEach((evt) => {
+      this.ndk.pool.on(evt as any, handler);
+    });
+
+    return () => {
+      events.forEach((evt) => {
+        this.ndk.pool.removeListener(evt as any, handler);
+      });
+    };
+  }
+
   public getSecretKey(): Uint8Array {
     if (this.userSecretKey) {
       return this.userSecretKey;

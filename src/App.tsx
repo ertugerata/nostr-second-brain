@@ -6,6 +6,7 @@ import { SimpleGraphView } from "./components/SimpleGraphView";
 import { KeyLoginForm } from "./components/KeyLoginForm";
 import { SettingsView } from "./components/SettingsView";
 import { VersionHistoryModal } from "./components/VersionHistoryModal";
+import { RelayStatusIndicator } from "./components/RelayStatusIndicator";
 import { extractWikilinks, slugify } from "./utils/wikilink";
 import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
 import { KeyStoreService } from "./utils/keyStore";
@@ -319,7 +320,8 @@ export function App() {
             >
               {sidebarCollapsed ? "▶ Sidebar" : "◀ Sidebar"}
             </button>
-            <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
+            <RelayStatusIndicator ready={ready} />
+            <span className="status-badge">{statusText}</span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button
