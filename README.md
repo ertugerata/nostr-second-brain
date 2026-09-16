@@ -37,6 +37,38 @@ nostr-second-brain/
 │   └── utils/
 │       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
 │       └── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
+├── Dockerfile              # Docker görsel (image) yapılandırması
+├── docker-compose.yml      # Docker Compose servis yapılandırması
+├── .dockerignore           # Docker derleme harici tutulan dosyalar
+├── index.html              # HTML şablonu
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
+```
+
+---
+
+## 🐳 Docker ile Çalıştırma
+
+Uygulamayı Docker kapsayıcısı (container) içerisinde çalıştırmak için aşağıdaki yöntemlerden birini kullanabilirsiniz:
+
+### Docker Compose ile (Önerilen)
+
+```bash
+docker compose up -d
+```
+Uygulamaya tarayıcınızdan `http://localhost:8080` adresinden erişebilirsiniz.
+
+### Docker CLI ile
+
+1. **Docker İmajını Derleyin:**
+   ```bash
+   docker build -t nostr-second-brain .
+   ```
+
+2. **Konteyneri Çalıştırın:**
+   ```bash
+   docker run -d -p 8080:80 --name nostr-second-brain-app nostr-second-brain
+   ```
+
+Tarayıcınızda `http://localhost:8080` adresine gidin.
