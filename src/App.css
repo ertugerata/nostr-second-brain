@@ -81,6 +81,16 @@ body {
   background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
+  transition: width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  margin-left: -1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-header {
@@ -129,7 +139,7 @@ body {
   background-color: var(--primary-btn-hover);
 }
 
-/* Sekmeler (Editor / Graph View / Settings) */
+/* Sekmeler (Editor / Graph View) */
 .nav-tabs {
   display: flex;
   border-bottom: 1px solid var(--border-color);
@@ -204,6 +214,40 @@ body {
   margin-top: 2px;
 }
 
+/* Sidebar Footer / Ayarlar Bölümü */
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+}
+
+.sidebar-settings-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--input-border);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.sidebar-settings-btn:hover {
+  background-color: var(--bg-active);
+}
+
+.sidebar-settings-btn.active {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
+}
+
 /* Sağ Ana Çalışma Alanı */
 .main-content {
   flex: 1;
@@ -221,6 +265,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.sidebar-toggle-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: var(--bg-active);
 }
 
 .status-badge {

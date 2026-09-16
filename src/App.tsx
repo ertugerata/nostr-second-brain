@@ -18,6 +18,7 @@ export function App() {
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [activeTab, setActiveTab] = useState<"editor" | "graph" | "settings">("editor");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     return (localStorage.getItem("theme") as "light" | "dark") || "light";
   });
@@ -180,17 +181,16 @@ export function App() {
       }
     };
     reader.readAsText(file);
-    // Reset file input value so same file can be re-selected if needed
     e.target.value = "";
   };
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {/* Sol Menü / Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">
           <h2>🧠 Nostr Brain</h2>
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
             <input
               type="file"
               accept=".md,.markdown,.txt"
@@ -222,12 +222,6 @@ export function App() {
           >
             🕸️ Graph
           </button>
-          <button
-            className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            ⚙️ Ayarlar
-          </button>
         </div>
 
         <div className="note-list">
@@ -254,12 +248,31 @@ export function App() {
             </div>
           ))}
         </div>
+
+        {/* Sidebar Alt Bölüm / Settings Button */}
+        <div className="sidebar-footer">
+          <button
+            className={`sidebar-settings-btn ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            ⚙️ Ayarlar
+          </button>
+        </div>
       </aside>
 
       {/* Ana Çalışma Alanı */}
       <main className="main-content">
         <header className="top-bar">
-          <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="sidebar-toggle-btn"
+              title={sidebarCollapsed ? "Menüyü Göster" : "Menüyü Gizle"}
+            >
+              {sidebarCollapsed ? "▶ Sidebar" : "◀ Sidebar"}
+            </button>
+            <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
+          </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button
               onClick={toggleTheme}
