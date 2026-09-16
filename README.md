@@ -51,7 +51,22 @@ nostr-second-brain/
 ├── index.html              # HTML şablonu
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+├── README.md
+└── src/
+    ├── App.tsx
+    ├── main.tsx
+    ├── nostr.ts
+    ├── components/
+    │   ├── KeyLoginForm.tsx
+    │   ├── SimpleGraphView.tsx
+    │   └── WikiContent.tsx
+    └── utils/
+        ├── crypto.ts
+        ├── graphBuilder.ts
+        ├── keyStore.ts
+        ├── unwrap.ts
+        └── wikilink.ts
 ```
 
 ---
