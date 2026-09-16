@@ -5,10 +5,12 @@ import { WikiContent } from "./components/WikiContent";
 import { SimpleGraphView } from "./components/SimpleGraphView";
 import { KeyLoginForm } from "./components/KeyLoginForm";
 import { SettingsView } from "./components/SettingsView";
+import { VersionHistoryModal } from "./components/VersionHistoryModal";
 import { extractWikilinks, slugify } from "./utils/wikilink";
 import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
 import { KeyStoreService } from "./utils/keyStore";
 import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
+import { getDefaultSampleNote } from "./utils/sampleNote";
 import "./App.css";
 
 export function App() {
@@ -19,15 +21,38 @@ export function App() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [activeTab, setActiveTab] = useState<"editor" | "graph" | "settings">("editor");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showVersionModal, setShowVersionModal] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     return (localStorage.getItem("theme") as "light" | "dark") || "light";
   });
 
-  const [notes, setNotes] = useState<Map<string, NoteItem>>(new Map());
+  // Main active notes map (slug -> latest NoteItem)
+  const [notes, setNotes] = useState<Map<string, NoteItem>>(() => {
+    const sample = getDefaultSampleNote();
+    const map = new Map<string, NoteItem>();
+    map.set(sample.slug, sample);
+    return map;
+  });
+
+  // History map storing all versions for each slug (slug -> NoteItem[])
+  const [noteHistory, setNoteHistory] = useState<Map<string, NoteItem[]>>(() => {
+    const sample = getDefaultSampleNote();
+    const map = new Map<string, NoteItem[]>();
+    map.set(sample.slug, [sample]);
+    return map;
+  });
+
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [statusText, setStatusText] = useState("Sistem hazır.");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load sample note into editor on first mount
+  useEffect(() => {
+    const sample = getDefaultSampleNote();
+    setSlug(sample.slug);
+    setContent(sample.content);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -50,18 +75,30 @@ export function App() {
 
       sub.on("event", (event: NDKEvent) => {
         const noteSlug = event.tagValue("d") || "untitled";
+        const newNoteItem: NoteItem = {
+          id: event.id,
+          slug: noteSlug,
+          content: event.content,
+          createdAt: event.created_at!,
+          pubkey: event.pubkey,
+        };
 
+        // Update Note History map
+        setNoteHistory((prevHistory) => {
+          const updated = new Map(prevHistory);
+          const existingList = updated.get(noteSlug) || [];
+          if (!existingList.some((item) => item.id === newNoteItem.id)) {
+            updated.set(noteSlug, [...existingList, newNoteItem]);
+          }
+          return updated;
+        });
+
+        // Update Latest Notes map
         setNotes((prevNotes) => {
           const existing = prevNotes.get(noteSlug);
           if (!existing || event.created_at! > existing.createdAt) {
             const updated = new Map(prevNotes);
-            updated.set(noteSlug, {
-              id: event.id,
-              slug: noteSlug,
-              content: event.content,
-              createdAt: event.created_at!,
-              pubkey: event.pubkey,
-            });
+            updated.set(noteSlug, newNoteItem);
             return updated;
           }
           return prevNotes;
@@ -121,15 +158,24 @@ export function App() {
         await nostrService.ndk.cacheAdapter.setEvent(event, []);
       }
 
+      const savedItem: NoteItem = {
+        id: event.id,
+        slug: noteSlug,
+        content: event.content,
+        createdAt: event.created_at || Math.floor(Date.now() / 1000),
+        pubkey: event.pubkey,
+      };
+
       setNotes((prev) => {
         const updated = new Map(prev);
-        updated.set(noteSlug, {
-          id: event.id,
-          slug: noteSlug,
-          content: event.content,
-          createdAt: event.created_at || Math.floor(Date.now() / 1000),
-          pubkey: event.pubkey,
-        });
+        updated.set(noteSlug, savedItem);
+        return updated;
+      });
+
+      setNoteHistory((prevHistory) => {
+        const updated = new Map(prevHistory);
+        const existingList = updated.get(noteSlug) || [];
+        updated.set(noteSlug, [...existingList, savedItem]);
         return updated;
       });
 
@@ -183,6 +229,8 @@ export function App() {
     reader.readAsText(file);
     e.target.value = "";
   };
+
+  const currentSlugVersions = noteHistory.get(slugify(slug)) || (notes.get(slugify(slug)) ? [notes.get(slugify(slug))!] : []);
 
   return (
     <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -298,14 +346,38 @@ export function App() {
         {activeTab === "editor" && (
           <div className="editor-container">
             <form onSubmit={handleSaveNote} className="editor-form">
-              <input
-                type="text"
-                placeholder="Not Başlığı (Slug)..."
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                className="title-input"
-                required
-              />
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Not Başlığı (Slug)..."
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="title-input"
+                  style={{ flex: 1 }}
+                  required
+                />
+                {currentSlugVersions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowVersionModal(true)}
+                    className="history-btn"
+                    title="Bu notun versiyon geçmişini gör"
+                    style={{
+                      padding: "12px 14px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      backgroundColor: "var(--bg-secondary)",
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--input-border)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    📜 Versiyonlar ({currentSlugVersions.length})
+                  </button>
+                )}
+              </div>
 
               <textarea
                 placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
@@ -370,6 +442,20 @@ export function App() {
           />
         )}
       </main>
+
+      {/* Version History Modal */}
+      {showVersionModal && (
+        <VersionHistoryModal
+          slug={slug}
+          versions={currentSlugVersions}
+          onSelectVersion={(selectedVersion) => {
+            setContent(selectedVersion.content);
+            setShowVersionModal(false);
+            setStatusText(`Versiyon ${new Date(selectedVersion.createdAt * 1000).toLocaleTimeString("tr-TR")} editöre yüklendi.`);
+          }}
+          onClose={() => setShowVersionModal(false)}
+        />
+      )}
     </div>
   );
 }
