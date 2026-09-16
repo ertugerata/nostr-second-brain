@@ -13,6 +13,7 @@ interface RelayStatusIndicatorProps {
 export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ ready }) => {
   const [relays, setRelays] = useState<RelayStatus[]>([]);
   const [activeCount, setActiveCount] = useState<number>(0);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +27,14 @@ export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ read
   useEffect(() => {
     refreshStatus();
 
-    // Event listener subscription for live changes
+    // Listen to network status changes
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Event listener subscription for live relay changes
     const unsubscribe = nostrService.onRelayStatusChange(() => {
       refreshStatus();
     });
@@ -37,6 +45,8 @@ export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ read
     }, 2000);
 
     return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       unsubscribe();
       clearInterval(interval);
     };
@@ -59,24 +69,26 @@ export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ read
   }, [isOpen]);
 
   const totalCount = relays.length;
+  const isConnected = isOnline && activeCount > 0;
+  const isOfflineMode = !isOnline || (ready && activeCount === 0);
 
   return (
     <div className="relay-status-container" ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
       <button
         type="button"
-        className={`relay-status-badge ${activeCount > 0 ? "connected" : ready ? "disconnected" : "connecting"}`}
+        className={`relay-status-badge ${isConnected ? "connected" : isOfflineMode ? "disconnected" : "connecting"}`}
         onClick={() => setIsOpen(!isOpen)}
-        title="Relay bağlantı durumunu gör"
+        title="Relay ve Bağlantı Durumunu Gör"
       >
         <span className="status-dot">
-          {!ready ? "🟡" : activeCount > 0 ? "🟢" : "🔴"}
+          {!ready ? "🟡" : isConnected ? "🟢" : "🔴"}
         </span>
         <span className="status-text">
           {!ready
             ? "Relay'lere Bağlanılıyor..."
-            : activeCount > 0
+            : isConnected
             ? `Nostr Ağına Bağlı (${activeCount}/${totalCount})`
-            : `Relay Bağlantısı Yok (0/${totalCount})`}
+            : "Çevrimdışı (Önbellek Modu)"}
         </span>
         <span className="dropdown-arrow">{isOpen ? "▲" : "▼"}</span>
       </button>
@@ -91,6 +103,18 @@ export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ read
           </div>
 
           <div className="relay-popover-body">
+            {isOfflineMode && (
+              <div className="offline-mode-banner">
+                <span className="offline-icon">💾</span>
+                <div className="offline-info">
+                  <strong>Çevrimdışı (Önbellek Modu)</strong>
+                  <p>
+                    İnternet veya relay kesintisinde Offline-First mimarimiz sayesinde not okumaya ve yerel veritabanına not yazmaya kesintisiz devam edebilirsiniz.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="relay-section-title">
               BAĞLI RELAY LISTESİ ({nostrService.getConnectedRelays().length})
             </div>
@@ -99,13 +123,13 @@ export const RelayStatusIndicator: React.FC<RelayStatusIndicatorProps> = ({ read
             ) : (
               <ul className="relay-list">
                 {relays.map((relay) => (
-                  <li key={relay.url} className={`relay-item ${relay.connected ? "is-connected" : "is-disconnected"}`}>
+                  <li key={relay.url} className={`relay-item ${isOnline && relay.connected ? "is-connected" : "is-disconnected"}`}>
                     <span className="relay-indicator-dot">
-                      {relay.connected ? "🟢" : "🔴"}
+                      {isOnline && relay.connected ? "🟢" : "🔴"}
                     </span>
                     <span className="relay-url" title={relay.url}>{relay.url}</span>
                     <span className="relay-status-tag">
-                      {relay.connected ? "Bağlı" : "Bağlantı Yok"}
+                      {isOnline && relay.connected ? "Bağlı" : "Bağlantı Yok"}
                     </span>
                   </li>
                 ))}

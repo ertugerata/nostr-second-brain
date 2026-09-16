@@ -374,6 +374,36 @@ body {
   overflow-y: auto;
 }
 
+.offline-mode-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+}
+
+.offline-icon {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.offline-info strong {
+  font-size: 12px;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.offline-info p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
 .relay-section-title {
   font-size: 10px;
   font-weight: 700;
