@@ -1,4 +1,5 @@
-import { nip49, nip19 } from "nostr-tools";
+import { nip19 } from "nostr-tools";
+import * as nip49 from "nostr-tools/nip49";
 
 const STORAGE_KEY = "nostr_encrypted_private_key";
 
