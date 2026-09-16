@@ -438,6 +438,13 @@ body {
   padding: 20px;
 }
 
+/* Ayarlar Bölümü Container */
+.settings-container {
+  flex: 1;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
 /* Markdown Stil Tanımlamaları */
 .markdown-body h1,
 .markdown-body h2,
