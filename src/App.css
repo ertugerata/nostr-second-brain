@@ -1,3 +1,48 @@
+/* CSS Variables for Light/Dark Themes */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --bg-active: #e2e8f0;
+  --border-color: #e2e8f0;
+  --input-border: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --primary-btn-bg: #0f172a;
+  --primary-btn-text: #ffffff;
+  --primary-btn-hover: #1e293b;
+  --accent-blue: #2563eb;
+  --accent-blue-hover: #1d4ed8;
+  --code-bg: #f1f5f9;
+  --code-block-bg: #0f172a;
+  --code-block-text: #f8fafc;
+  --settings-card-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-secondary: #334155;
+  --bg-active: #475569;
+  --border-color: #334155;
+  --input-border: #475569;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --primary-btn-bg: #38bdf8;
+  --primary-btn-text: #0f172a;
+  --primary-btn-hover: #0284c7;
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --code-bg: #334155;
+  --code-block-bg: #020617;
+  --code-block-text: #f8fafc;
+  --settings-card-bg: #1e293b;
+}
+
 /* Genel Sayfa Düzeni */
 * {
   box-sizing: border-box;
@@ -7,9 +52,10 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   line-height: 1.5;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* Kilit Ekranı Hizalama */
@@ -18,28 +64,38 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f8fafc;
+  background-color: var(--bg-primary);
 }
 
 /* Ana Uygulama Düzeni (Two-Column Layout) */
 .app-layout {
   display: flex;
   height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--bg-primary);
 }
 
 /* Sol Menü / Sidebar */
 .sidebar {
-  width: 260px;
-  border-right: 1px solid #e2e8f0;
-  background-color: #ffffff;
+  width: 280px;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
+  transition: width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  margin-left: -1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -48,27 +104,45 @@ body {
 .sidebar-header h2 {
   font-size: 16px;
   font-weight: 700;
+  color: var(--text-primary);
+}
+
+.import-btn {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.import-btn:hover {
+  background-color: var(--bg-active);
 }
 
 .new-btn {
-  background-color: #0f172a;
-  color: #ffffff;
+  background-color: var(--primary-btn-bg);
+  color: var(--primary-btn-text);
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 600;
   transition: background 0.2s;
 }
 
 .new-btn:hover {
-  background-color: #1e293b;
+  background-color: var(--primary-btn-hover);
 }
 
 /* Sekmeler (Editor / Graph View) */
 .nav-tabs {
   display: flex;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tab-btn {
@@ -78,14 +152,14 @@ body {
   background: none;
   cursor: pointer;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
 .tab-btn.active {
-  background-color: #f1f5f9;
+  background-color: var(--bg-secondary);
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Not Listesi */
@@ -98,9 +172,18 @@ body {
 .section-title {
   font-size: 11px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--text-faint);
   padding: 8px 8px 4px 8px;
   letter-spacing: 0.5px;
+}
+
+.export-all-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--accent-blue);
+  font-weight: 600;
 }
 
 .note-item {
@@ -112,22 +195,57 @@ body {
 }
 
 .note-item:hover {
-  background-color: #f1f5f9;
+  background-color: var(--bg-secondary);
 }
 
 .note-item.active {
-  background-color: #e2e8f0;
+  background-color: var(--bg-active);
 }
 
 .note-title {
   font-weight: 600;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .note-snippet {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* Sidebar Footer / Ayarlar Bölümü */
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+}
+
+.sidebar-settings-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--input-border);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.sidebar-settings-btn:hover {
+  background-color: var(--bg-active);
+}
+
+.sidebar-settings-btn.active {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
 }
 
 /* Sağ Ana Çalışma Alanı */
@@ -136,39 +254,72 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: var(--bg-primary);
 }
 
 /* Üst Çubuk */
 .top-bar {
   padding: 12px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.sidebar-toggle-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: var(--bg-active);
+}
+
 .status-badge {
   font-size: 12px;
-  color: #334155;
-  background-color: #f1f5f9;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
   padding: 4px 8px;
   border-radius: 4px;
 }
 
-.logout-btn {
-  background: none;
-  border: 1px solid #cbd5e1;
-  padding: 4px 10px;
-  border-radius: 4px;
+.theme-toggle-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+  padding: 5px 12px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: #475569;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--bg-active);
+}
+
+.logout-btn {
+  background: none;
+  border: 1px solid var(--input-border);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
   transition: background 0.2s;
 }
 
 .logout-btn:hover {
-  background-color: #f1f5f9;
+  background-color: var(--bg-secondary);
 }
 
 /* Editör & Form */
@@ -191,21 +342,25 @@ body {
   padding: 12px;
   font-size: 18px;
   font-weight: 600;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: 6px;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .title-input:focus {
-  border-color: #2563eb;
+  border-color: var(--accent-blue);
 }
 
 .content-input {
   padding: 12px;
   font-size: 14px;
   min-height: 180px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: 6px;
   outline: none;
   font-family: inherit;
@@ -214,7 +369,7 @@ body {
 }
 
 .content-input:focus {
-  border-color: #2563eb;
+  border-color: var(--accent-blue);
 }
 
 .form-actions {
@@ -229,11 +384,26 @@ body {
   gap: 6px;
   cursor: pointer;
   font-size: 13px;
-  color: #475569;
+  color: var(--text-secondary);
+}
+
+.export-btn {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.export-btn:hover {
+  background-color: var(--bg-active);
 }
 
 .save-btn {
-  background-color: #2563eb;
+  background-color: var(--accent-blue);
   color: #ffffff;
   border: none;
   padding: 10px 20px;
@@ -244,20 +414,20 @@ body {
 }
 
 .save-btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--accent-blue-hover);
 }
 
 /* Önizleme Kutusu */
 .preview-box {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
   padding: 15px;
   border-radius: 6px;
-  background-color: #ffffff;
+  background-color: var(--bg-surface);
 }
 
 .preview-title {
   margin-bottom: 10px;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -266,4 +436,86 @@ body {
 /* Graph View Alanı */
 .graph-container {
   padding: 20px;
+}
+
+/* Markdown Stil Tanımlamaları */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.markdown-body h1 { font-size: 1.75em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.4em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: 1.2em; }
+
+.markdown-body p {
+  margin-bottom: 1em;
+  color: var(--text-primary);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+  color: var(--text-primary);
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: var(--text-muted);
+  border-left: 0.25em solid var(--input-border);
+  margin-bottom: 1em;
+}
+
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--code-bg);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+}
+
+.markdown-body pre {
+  padding: 12px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--code-block-bg);
+  color: var(--code-block-text);
+  border-radius: 6px;
+  margin-bottom: 1em;
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.markdown-body table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  width: 100%;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: var(--bg-primary);
 }

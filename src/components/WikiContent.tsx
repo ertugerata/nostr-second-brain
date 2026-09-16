@@ -1,5 +1,7 @@
 import React from "react";
-import { extractWikilinks, slugify } from "../utils/wikilink";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { slugify } from "../utils/wikilink";
 
 interface WikiContentProps {
   content: string;
@@ -7,54 +9,61 @@ interface WikiContentProps {
 }
 
 export const WikiContent: React.FC<WikiContentProps> = ({ content, onNavigate }) => {
-  const links = extractWikilinks(content);
+  // Replace [[target|label]] or [[target]] with [label](wikilink:slug)
+  const preprocessWikilinks = (text: string): string => {
+    return text.replace(/\[\[([^\]\|]+)(?:\|([^\]]+))?\]\]/g, (_, target, label) => {
+      const rawTarget = target.trim();
+      const displayLabel = label ? label.trim() : rawTarget;
+      const targetSlug = slugify(rawTarget);
+      return `[${displayLabel}](wikilink:${targetSlug})`;
+    });
+  };
 
-  if (links.length === 0) {
-    return <div style={{ whiteSpace: "pre-wrap" }}>{content}</div>;
-  }
+  const formattedContent = preprocessWikilinks(content);
 
-  const regex = /\[\[([^\]\|]+)(?:\|([^\]]+))?\]\]/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    const matchIndex = match.index;
-    
-    if (matchIndex > lastIndex) {
-      parts.push(content.substring(lastIndex, matchIndex));
-    }
-
-    const rawTarget = match[1].trim();
-    const label = match[2] ? match[2].trim() : rawTarget;
-    const targetSlug = slugify(rawTarget);
-
-    parts.push(
-      <button
-        key={`${targetSlug}-${matchIndex}`}
-        onClick={() => onNavigate(targetSlug)}
-        style={{
-          background: "#e8f0fe",
-          color: "#1a73e8",
-          border: "none",
-          borderRadius: 4,
-          padding: "2px 6px",
-          margin: "0 2px",
-          cursor: "pointer",
-          fontWeight: 600,
-          textDecoration: "underline",
+  return (
+    <div className="markdown-body" style={{ lineHeight: 1.6 }}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a({ href, children, ...props }) {
+            if (href && href.startsWith("wikilink:")) {
+              const targetSlug = href.replace("wikilink:", "");
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate(targetSlug);
+                  }}
+                  className="wikilink-btn"
+                  style={{
+                    background: "#e8f0fe",
+                    color: "#1a73e8",
+                    border: "none",
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                    margin: "0 2px",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    textDecoration: "underline",
+                    fontSize: "inherit",
+                  }}
+                >
+                  {children}
+                </button>
+              );
+            }
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                {children}
+              </a>
+            );
+          },
         }}
       >
-        {label}
-      </button>
-    );
-
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.substring(lastIndex));
-  }
-
-  return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{parts}</div>;
+        {formattedContent}
+      </ReactMarkdown>
+    </div>
+  );
 };
