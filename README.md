@@ -10,7 +10,8 @@
 - ⚡ **Offline-First Mimari:** IndexedDB katmanı sayesinde sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten (`@nostr-dev-kit/ndk-cache-dexie`) ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
 - 🕸️ **Dinamik Graph View:** Notlar arasındaki bağlantılar otomatik ayrıştırılarak notlar arası ilişki ağ haritası (Nodes & Edges) çıkarılır.
-- 🔑 **Güvenli Kimlik Yönetimi:** NIP-07 destekli tarayıcı eklentileri (Alby, nos2x vb.) ile private key bilgisi asla uygulamaya verilmeden güvenle imzalama yapılır. Eklenti olmaması durumunda ephemereal key desteği sunar.
+- 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya ephemeral (geçici) key kullanımı desteklenir.
+- 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
 
 ---
 
@@ -19,6 +20,9 @@
 | NIP | Başlık | Kullanım Amacı |
 | :--- | :--- | :--- |
 | **NIP-54** | Wiki Articles | `kind: 30818` (Addressable Event) ile [[wikilink]] not yapısı |
+| **NIP-49** | Private Key Encryption | `nsec` anahtarını parola ile `ncryptsec` formatında şifreleyerek güvenli yerel depolama |
+| **NIP-44** | Encrypted Payloads | Not içeriğini ve seal paketlerini uçtan uca şifreleme |
+| **NIP-59** | Gift Wrap | Ephemeral key ile gizli notları (Rumor -> Seal -> Gift Wrap) zarflama |
 | **NIP-07** | Browser Extension Signer | `window.nostr` üzerinden tarayıcı eklentisi ile güvenli imzalama |
 
 ---
@@ -30,11 +34,13 @@ nostr-second-brain/
 ├── src/
 │   ├── main.tsx             # React giriş noktası
 │   ├── App.tsx              # Ana uygulama bileşeni (State, Offline Sync, Formlar)
-│   ├── nostr.ts            # NDK ve Dexie IndexedDB cache yapılandırması
+│   ├── nostr.ts            # NDK, NIP-49 oturumu ve Dexie IndexedDB cache yapılandırması
 │   ├── components/
+│   │   ├── KeyLoginForm.tsx # NIP-49 Parola ile giriş ve anahtar kasası formu
 │   │   ├── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
 │   │   └── SimpleGraphView.tsx # Notlar arası ilişki grafiği (Graph View) görselleştiricisi
 │   └── utils/
+│       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve localStorage kilit yönetimi
 │       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
 │       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
 │       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
@@ -46,6 +52,20 @@ nostr-second-brain/
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
+```
+
+---
+
+## 🔐 Güvenlik Mimarisi Özeti
+
+```text
+[Kullanıcı nsec] + [Parola]
+        │
+        ▼ (NIP-49: Scrypt + XChaCha20-Poly1305)
+  "ncryptsec1..." (Güvenli Metin)
+        │
+        ▼ (localStorage / IndexedDB)
+   [Yerel Depolama]
 ```
 
 ---
