@@ -60,7 +60,7 @@ export function App() {
       });
     }
 
-    if (isAuthenticated) {
+    if (isAuthenticated || !KeyStoreService.hasStoredKey()) {
       init();
     }
   }, [isAuthenticated]);
@@ -109,7 +109,7 @@ export function App() {
       await event.sign();
 
       if (nostrService.ndk.cacheAdapter) {
-        await nostrService.ndk.cacheAdapter.saveEvent(event);
+        await nostrService.ndk.cacheAdapter.setEvent(event, []);
       }
 
       setNotes((prev) => {
@@ -187,7 +187,7 @@ export function App() {
       {/* Ana Çalışma Alanı */}
       <main className="main-content">
         <header className="top-bar">
-          <span className="status-badge">🟢 {statusText}</span>
+          <span className="status-badge">{ready ? `🟢 ${statusText}` : "🟡 Bağlanıyor..."}</span>
           {KeyStoreService.hasStoredKey() && (
             <button
               onClick={() => {
