@@ -85,13 +85,62 @@ export function App() {
         }
       }
 
+      // Deleted event tracking: set of event IDs and set of coordinates ("30818:pubkey:d-tag")
+      const deletedEventIds = new Set<string>();
+      const deletedCoordinates = new Set<string>();
+
       const sub = nostrService.ndk.subscribe(
-        { kinds: [30818 as number], limit: 100 },
+        { kinds: [30818 as number, 5 as number], limit: 200 },
         { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: false }
       );
 
       sub.on("event", (event: NDKEvent) => {
+        if (event.kind === 5) {
+          // Process NIP-09 deletion event
+          const eTags = event.getMatchingTags("e").map((t) => t[1]);
+          const aTags = event.getMatchingTags("a").map((t) => t[1]);
+
+          eTags.forEach((id) => deletedEventIds.add(id));
+          aTags.forEach((coord) => deletedCoordinates.add(coord));
+
+          // Purge deleted events from state
+          setNoteHistory((prevHistory) => {
+            const updated = new Map<string, NoteItem[]>();
+            prevHistory.forEach((items, noteSlug) => {
+              const filtered = items.filter((item) => {
+                const coord = `30818:${item.pubkey}:${item.slug}`;
+                const isDeleted = deletedEventIds.has(item.id) || deletedCoordinates.has(coord);
+                return !isDeleted && !eTags.includes(item.id) && !aTags.includes(coord);
+              });
+              if (filtered.length > 0) {
+                updated.set(noteSlug, filtered);
+              }
+            });
+            return updated;
+          });
+
+          setNotes((prevNotes) => {
+            const updated = new Map<string, NoteItem>();
+            prevNotes.forEach((item, noteSlug) => {
+              const coord = `30818:${item.pubkey}:${item.slug}`;
+              const isDeleted = deletedEventIds.has(item.id) || deletedCoordinates.has(coord) || eTags.includes(item.id) || aTags.includes(coord);
+              if (!isDeleted) {
+                updated.set(noteSlug, item);
+              }
+            });
+            return updated;
+          });
+
+          return;
+        }
+
         const noteSlug = event.tagValue("d") || "untitled";
+        const coord = `30818:${event.pubkey}:${noteSlug}`;
+
+        if (deletedEventIds.has(event.id) || deletedCoordinates.has(coord)) {
+          return;
+        }
+
         const newNoteItem: NoteItem = {
           id: event.id,
           slug: noteSlug,
@@ -105,7 +154,8 @@ export function App() {
           const updated = new Map(prevHistory);
           const existingList = updated.get(noteSlug) || [];
           if (!existingList.some((item) => item.id === newNoteItem.id)) {
-            updated.set(noteSlug, [...existingList, newNoteItem]);
+            const updatedList = [...existingList, newNoteItem];
+            updated.set(noteSlug, updatedList);
           }
           return updated;
         });
@@ -215,6 +265,91 @@ export function App() {
     setSlug("yeni-not");
     setContent("");
     setActiveTab("editor");
+  };
+
+  const handleDeleteNote = async (targetSlug: string) => {
+    const noteToDelete = notes.get(targetSlug);
+    if (!noteToDelete) return;
+
+    if (!window.confirm(`"${noteToDelete.slug}" notunu ve tüm geçmişini silmek istediğinize emin misiniz? (NIP-09 deletion event yayınlanacak)`)) {
+      return;
+    }
+
+    setStatusText("Silme talebi yayınlanıyor (NIP-09)...");
+    try {
+      await nostrService.deleteEvent(noteToDelete.id, noteToDelete.slug, "Not kullanıcı tarafından silindi");
+
+      setNotes((prev) => {
+        const updated = new Map(prev);
+        updated.delete(targetSlug);
+        return updated;
+      });
+
+      setNoteHistory((prev) => {
+        const updated = new Map(prev);
+        updated.delete(targetSlug);
+        return updated;
+      });
+
+      if (slug === targetSlug) {
+        setSlug("yeni-not");
+        setContent("");
+      }
+
+      setStatusText("Not başarıyla silindi ve NIP-09 duyurusu yayınlandı!");
+    } catch (error) {
+      console.error("Silme hatası:", error);
+      setStatusText("Silme işlemi başarısız oldu!");
+    }
+  };
+
+  const handleDeleteVersionItem = async (ver: NoteItem) => {
+    if (!window.confirm(`Bu özel versiyonu (${new Date(ver.createdAt * 1000).toLocaleString("tr-TR")}) silmek istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    setStatusText("Versiyon silme talebi yayınlanıyor (NIP-09)...");
+    try {
+      await nostrService.deleteEvent(ver.id, ver.slug, "Versiyon silindi");
+
+      const noteSlug = ver.slug;
+      setNoteHistory((prevHistory) => {
+        const updated = new Map(prevHistory);
+        const existingList = updated.get(noteSlug) || [];
+        const filtered = existingList.filter((item) => item.id !== ver.id);
+        if (filtered.length > 0) {
+          updated.set(noteSlug, filtered);
+        } else {
+          updated.delete(noteSlug);
+        }
+        return updated;
+      });
+
+      setNotes((prevNotes) => {
+        const currentNote = prevNotes.get(noteSlug);
+        if (currentNote && currentNote.id === ver.id) {
+          const updated = new Map(prevNotes);
+          const historyList = (noteHistory.get(noteSlug) || []).filter((item) => item.id !== ver.id);
+          if (historyList.length > 0) {
+            const sorted = [...historyList].sort((a, b) => b.createdAt - a.createdAt);
+            updated.set(noteSlug, sorted[0]);
+          } else {
+            updated.delete(noteSlug);
+            if (slug === noteSlug) {
+              setSlug("yeni-not");
+              setContent("");
+            }
+          }
+          return updated;
+        }
+        return prevNotes;
+      });
+
+      setStatusText("Versiyon silindi ve NIP-09 duyurusu yayınlandı!");
+    } catch (error) {
+      console.error("Versiyon silme hatası:", error);
+      setStatusText("Versiyon silme başarısız oldu!");
+    }
   };
 
   const handleExportCurrentNote = () => {
@@ -346,9 +481,31 @@ export function App() {
                   <div className="note-item-header">
                     <div className="note-title">{note.slug}</div>
                     {isMine ? (
-                      <span className="author-badge mine-badge" title="Bu not sizin anahtarınızla imzalanmış">
-                        ✍️ Benim
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span className="author-badge mine-badge" title="Bu not sizin anahtarınızla imzalanmış">
+                          ✍️ Benim
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNote(note.slug);
+                          }}
+                          className="delete-note-btn"
+                          title="Bu notu sil (NIP-09)"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            padding: "2px 4px",
+                            borderRadius: "4px",
+                            color: "#ef4444",
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     ) : (
                       <span className="author-badge other-badge" title={`Yazar: ${note.pubkey ? note.pubkey.slice(0, 10) + "..." : "Bilinmiyor"}`}>
                         🌐 Relay
@@ -519,6 +676,25 @@ export function App() {
                 </label>
 
                 <div style={{ display: "flex", gap: "8px" }}>
+                  {notes.has(slugify(slug)) && notes.get(slugify(slug))?.pubkey === currentUserPubkey && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNote(slugify(slug))}
+                      className="delete-btn"
+                      style={{
+                        backgroundColor: "#dc2626",
+                        color: "#ffffff",
+                        border: "none",
+                        padding: "8px 14px",
+                        borderRadius: "6px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🗑️ Notu Sil
+                    </button>
+                  )}
+
                   {content.trim().length > 0 && (
                     <button
                       type="button"
@@ -558,11 +734,13 @@ export function App() {
         <VersionHistoryModal
           slug={slug}
           versions={currentSlugVersions}
+          currentUserPubkey={currentUserPubkey}
           onSelectVersion={(selectedVersion) => {
             setContent(selectedVersion.content);
             setShowVersionModal(false);
             setStatusText(`Versiyon ${new Date(selectedVersion.createdAt * 1000).toLocaleTimeString("tr-TR")} editöre yüklendi.`);
           }}
+          onDeleteVersion={handleDeleteVersionItem}
           onClose={() => setShowVersionModal(false)}
         />
       )}

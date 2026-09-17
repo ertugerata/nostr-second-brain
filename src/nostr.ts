@@ -1,4 +1,4 @@
-import NDK, { NDKNip07Signer, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
+import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { KeyStoreService } from "./utils/keyStore";
 
@@ -144,6 +144,45 @@ export class NostrService {
         this.ndk.pool.removeListener(evt as any, handler);
       });
     };
+  }
+
+  /**
+   * NIP-09 Deletion Event (kind: 5)
+   * Belirtilen event veya parametrik adreslenebilir (addressable) not için silme talebi yayınlar.
+   */
+  public async deleteEvent(eventId: string, noteSlug?: string, reason: string = "Kullanıcı isteği ile silindi"): Promise<NDKEvent> {
+    const deleteEvent = new NDKEvent(this.ndk);
+    deleteEvent.kind = 5;
+    deleteEvent.content = reason;
+
+    const tags: string[][] = [["e", eventId]];
+
+    if (this.ndk.signer) {
+      try {
+        const user = await this.ndk.signer.user();
+        if (user && user.pubkey && noteSlug) {
+          tags.push(["a", `30818:${user.pubkey}:${noteSlug}`]);
+        }
+      } catch (e) {
+        console.warn("Kullanıcı pubkey alınamadı, 'a' tagi eklenemedi:", e);
+      }
+    }
+
+    tags.push(["k", "30818"]);
+    deleteEvent.tags = tags;
+
+    await deleteEvent.sign();
+
+    if (this.cacheAdapter) {
+      try {
+        await this.cacheAdapter.setEvent(deleteEvent, []);
+      } catch (e) {
+        console.warn("Cache adapter'a deletion event kaydedilemedi:", e);
+      }
+    }
+
+    await deleteEvent.publish();
+    return deleteEvent;
   }
 
   public getSecretKey(): Uint8Array {
