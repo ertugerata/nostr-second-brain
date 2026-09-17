@@ -10,7 +10,7 @@ export class LocalFileSyncService {
         alert("Tarayıcınız File System Access API'yi desteklemiyor.");
         return false;
       }
-      this.dirHandle = await window.showDirectoryPicker({
+      this.dirHandle = await (window as any).showDirectoryPicker({
         mode: 'readwrite'
       });
       return true;
@@ -18,6 +18,10 @@ export class LocalFileSyncService {
       console.warn("Klasör seçimi iptal edildi:", err);
       return false;
     }
+  }
+
+  public static getSelectedDirectoryName(): string | null {
+    return this.dirHandle ? this.dirHandle.name : null;
   }
 
   /**
