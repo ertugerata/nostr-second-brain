@@ -3,14 +3,14 @@ services:
   app:
     build: .
     ports:
-      - "5173:5173"
+      - "8080:80"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
 
   # Self-Hosted Private Relay (strfry v1.1.3)
   private-relay:
-    image: ghcr.io/hoytech/strfry:v1.1.3
+    image: ghcr.io/hoytech/strfry:latest
     ports:
       - "7777:7777"
     volumes:
