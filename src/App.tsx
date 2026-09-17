@@ -3,6 +3,7 @@ import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
 import { SimpleGraphView } from "./components/SimpleGraphView";
+import { MarkdownToolbar } from "./components/MarkdownToolbar";
 import { KeyLoginForm } from "./components/KeyLoginForm";
 import { SettingsView } from "./components/SettingsView";
 import { VersionHistoryModal } from "./components/VersionHistoryModal";
@@ -45,8 +46,12 @@ export function App() {
 
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [statusText, setStatusText] = useState("Sistem hazır.");
+  const [currentUserPubkey, setCurrentUserPubkey] = useState<string>("");
+  const [filterMode, setFilterMode] = useState<"all" | "mine" | "others">("all");
+  const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "split">("edit");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load sample note into editor on first mount
   useEffect(() => {
@@ -68,6 +73,17 @@ export function App() {
     async function init() {
       await nostrService.connect();
       setReady(true);
+
+      if (nostrService.ndk.signer) {
+        try {
+          const user = await nostrService.ndk.signer.user();
+          if (user && user.pubkey) {
+            setCurrentUserPubkey(user.pubkey);
+          }
+        } catch (e) {
+          console.warn("Kullanıcı pubkey alınamadı:", e);
+        }
+      }
 
       const sub = nostrService.ndk.subscribe(
         { kinds: [30818 as number], limit: 100 },
@@ -275,7 +291,7 @@ export function App() {
 
         <div className="note-list">
           <div className="section-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: "8px" }}>
-            <span className="section-title">NOTLARIM ({notes.size})</span>
+            <span className="section-title">NOTLAR ({notes.size})</span>
             {notes.size > 0 && (
               <button
                 onClick={() => exportAllNotesAsJson(notes)}
@@ -286,16 +302,71 @@ export function App() {
               </button>
             )}
           </div>
-          {Array.from(notes.values()).map((note) => (
-            <div
-              key={note.id}
-              onClick={() => handleSelectNote(note.slug)}
-              className={`note-item ${slug === note.slug ? "active" : ""}`}
+
+          <div className="note-filter-bar">
+            <button
+              className={`filter-btn ${filterMode === "all" ? "active" : ""}`}
+              onClick={() => setFilterMode("all")}
             >
-              <div className="note-title">{note.slug}</div>
-              <div className="note-snippet">{note.content.slice(0, 45)}...</div>
-            </div>
-          ))}
+              Tümü ({notes.size})
+            </button>
+            <button
+              className={`filter-btn ${filterMode === "mine" ? "active" : ""}`}
+              onClick={() => setFilterMode("mine")}
+            >
+              ✍️ Benim ({Array.from(notes.values()).filter((n) => n.pubkey && n.pubkey === currentUserPubkey).length})
+            </button>
+            <button
+              className={`filter-btn ${filterMode === "others" ? "active" : ""}`}
+              onClick={() => setFilterMode("others")}
+            >
+              🌐 Diğer ({Array.from(notes.values()).filter((n) => !n.pubkey || n.pubkey !== currentUserPubkey).length})
+            </button>
+          </div>
+
+          {Array.from(notes.values())
+            .filter((note) => {
+              if (filterMode === "mine") {
+                return note.pubkey && note.pubkey === currentUserPubkey;
+              }
+              if (filterMode === "others") {
+                return !note.pubkey || note.pubkey !== currentUserPubkey;
+              }
+              return true;
+            })
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .map((note) => {
+              const isMine = note.pubkey && note.pubkey === currentUserPubkey;
+              return (
+                <div
+                  key={note.id}
+                  onClick={() => handleSelectNote(note.slug)}
+                  className={`note-item ${slug === note.slug ? "active" : ""}`}
+                >
+                  <div className="note-item-header">
+                    <div className="note-title">{note.slug}</div>
+                    {isMine ? (
+                      <span className="author-badge mine-badge" title="Bu not sizin anahtarınızla imzalanmış">
+                        ✍️ Benim
+                      </span>
+                    ) : (
+                      <span className="author-badge other-badge" title={`Yazar: ${note.pubkey ? note.pubkey.slice(0, 10) + "..." : "Bilinmiyor"}`}>
+                        🌐 Relay
+                      </span>
+                    )}
+                  </div>
+                  <div className="note-snippet">{note.content.slice(0, 45)}...</div>
+                  <div className="note-date">
+                    {new Date(note.createdAt * 1000).toLocaleDateString("tr-TR", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              );
+            })}
         </div>
 
         {/* Sidebar Alt Bölüm / Settings Button */}
@@ -347,6 +418,33 @@ export function App() {
 
         {activeTab === "editor" && (
           <div className="editor-container">
+            <div className="editor-mode-bar">
+              <span className="mode-label">Görünüm Modu:</span>
+              <div className="editor-view-modes">
+                <button
+                  type="button"
+                  className={`mode-btn ${previewMode === "edit" ? "active" : ""}`}
+                  onClick={() => setPreviewMode("edit")}
+                >
+                  ✏️ Yaz / Düzenle
+                </button>
+                <button
+                  type="button"
+                  className={`mode-btn ${previewMode === "preview" ? "active" : ""}`}
+                  onClick={() => setPreviewMode("preview")}
+                >
+                  👁️ Ön İzleme
+                </button>
+                <button
+                  type="button"
+                  className={`mode-btn ${previewMode === "split" ? "active" : ""}`}
+                  onClick={() => setPreviewMode("split")}
+                >
+                  ↔️ Yan Yana
+                </button>
+              </div>
+            </div>
+
             <form onSubmit={handleSaveNote} className="editor-form">
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <input
@@ -381,13 +479,34 @@ export function App() {
                 )}
               </div>
 
-              <textarea
-                placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="content-input"
-                required
-              />
+              <div className={`editor-body-area ${previewMode === "split" ? "is-split" : ""}`}>
+                {(previewMode === "edit" || previewMode === "split") && (
+                  <div className="editor-input-wrapper">
+                    <MarkdownToolbar textareaRef={textareaRef} setContent={setContent} />
+                    <textarea
+                      ref={textareaRef}
+                      placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      className="content-input"
+                      required
+                    />
+                  </div>
+                )}
+
+                {(previewMode === "preview" || previewMode === "split") && (
+                  <div className="preview-box">
+                    <div className="preview-title">ÖNİZLEME (Markdown / NIP-54 Rendered)</div>
+                    {content.trim() ? (
+                      <WikiContent content={content} onNavigate={handleSelectNote} />
+                    ) : (
+                      <p style={{ color: "var(--text-muted)", fontSize: "14px", fontStyle: "italic" }}>
+                        Önizleme için içeriği girin veya bir .md dosyası yükleyin...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="form-actions">
                 <label className="checkbox-label">
@@ -416,17 +535,6 @@ export function App() {
                 </div>
               </div>
             </form>
-
-            <div className="preview-box">
-              <div className="preview-title">ÖNİZLEME (Markdown / NIP-54 Rendered)</div>
-              {content.trim() ? (
-                <WikiContent content={content} onNavigate={handleSelectNote} />
-              ) : (
-                <p style={{ color: "var(--text-muted)", fontSize: "14px", fontStyle: "italic" }}>
-                  Önizleme için içeriği girin veya bir .md dosyası yükleyin...
-                </p>
-              )}
-            </div>
           </div>
         )}
 
