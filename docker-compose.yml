@@ -7,14 +7,17 @@ services:
     environment:
       - NODE_ENV=production
     restart: unless-stopped
-
+ 
   # Self-Hosted Private Relay (strfry v1.1.3)
   private-relay:
     image: ghcr.io/hoytech/strfry:latest
     ports:
       - "7777:7777"
     volumes:
-      - ./strfry-data:/app/strfry-db
+      - strfry-data:/app/strfry-db
       - ./strfry.conf:/etc/strfry.conf
-    command: ["strfry", "relay"]
+    command: ["relay"]
     restart: unless-stopped
+ 
+volumes:
+  strfry-data:
