@@ -202,16 +202,85 @@ body {
   background-color: var(--bg-active);
 }
 
+.note-filter-bar {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 10px 0;
+  padding: 0 4px;
+}
+
+.filter-btn {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--input-border);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
+}
+
+.note-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
 .note-title {
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.mine-badge {
+  background-color: rgba(37, 99, 235, 0.12);
+  color: var(--accent-blue);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+.other-badge {
+  background-color: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--input-border);
 }
 
 .note-snippet {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+.note-date {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  text-align: right;
 }
 
 /* Sidebar Footer / Ayarlar Bölümü */
@@ -510,8 +579,51 @@ body {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   overflow-y: auto;
+}
+
+.editor-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.editor-view-modes {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .editor-form {
@@ -536,22 +648,91 @@ body {
   border-color: var(--accent-blue);
 }
 
-.content-input {
-  padding: 12px;
-  font-size: 14px;
-  min-height: 180px;
+.editor-body-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editor-body-area.is-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.editor-input-wrapper {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--input-border);
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
   border-radius: 6px;
-  outline: none;
-  font-family: inherit;
-  resize: vertical;
+  overflow: hidden;
+  background-color: var(--bg-surface);
   transition: border-color 0.2s;
 }
 
-.content-input:focus {
+.editor-input-wrapper:focus-within {
   border-color: var(--accent-blue);
+}
+
+.content-input {
+  padding: 12px;
+  font-size: 14px;
+  min-height: 240px;
+  border: none;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: 0;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* Markdown Toolbar */
+.md-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.md-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.md-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background-color: var(--input-border);
+  margin: 0 4px;
+}
+
+.md-toolbar-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s;
+}
+
+.md-toolbar-btn:hover {
+  background-color: var(--bg-active);
+}
+
+.md-toolbar-wikilink-btn {
+  color: var(--accent-blue);
 }
 
 .form-actions {
