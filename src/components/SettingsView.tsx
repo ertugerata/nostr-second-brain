@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { nip19 } from "nostr-tools";
-import { KeyStoreService } from "../utils/keyStore";
+import { KeyStoreService, validateAndEvaluatePassphrase } from "../utils/keyStore";
 import { nostrService } from "../nostr";
 
 interface SettingsViewProps {
@@ -16,8 +16,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   const [currentNpub, setCurrentNpub] = useState<string>("");
   const [currentNsec, setCurrentNsec] = useState<string>("");
   const [showSecretKey, setShowSecretKey] = useState(false);
+  const [relays, setRelays] = useState<string[]>([]);
+  const [newRelayUrl, setNewRelayUrl] = useState("");
+  const [relayMsg, setRelayMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   const hasStoredKey = KeyStoreService.hasStoredKey();
+
+  const refreshRelays = () => {
+    setRelays(nostrService.getRelayUrls());
+  };
+
+  useEffect(() => {
+    refreshRelays();
+    const cleanup = nostrService.onRelayStatusChange(() => {
+      refreshRelays();
+    });
+    return cleanup;
+  }, []);
+
+  const handleAddRelay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRelayMsg(null);
+    try {
+      const added = await nostrService.addRelay(newRelayUrl);
+      if (added) {
+        setRelayMsg({ text: `Relay eklendi: ${newRelayUrl}`, isError: false });
+        setNewRelayUrl("");
+        refreshRelays();
+      } else {
+        setRelayMsg({ text: "Bu relay zaten ekli.", isError: true });
+      }
+    } catch (err: any) {
+      setRelayMsg({ text: err.message || "Relay eklenemedi.", isError: true });
+    }
+  };
+
+  const handleRemoveRelay = async (url: string) => {
+    try {
+      await nostrService.removeRelay(url);
+      setRelayMsg({ text: `Relay çıkarıldı: ${url}`, isError: false });
+      refreshRelays();
+    } catch (err: any) {
+      setRelayMsg({ text: "Relay çıkarılamadı.", isError: true });
+    }
+  };
+
+  const handleResetRelays = async () => {
+    await nostrService.resetRelays();
+    setRelayMsg({ text: "Relay listesi varsayılana sıfırlandı.", isError: false });
+    refreshRelays();
+  };
 
   useEffect(() => {
     async function loadKeyInfo() {
@@ -32,9 +80,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           }
         }
 
-        const secretKey = nostrService.getSecretKey();
-        if (secretKey) {
-          setCurrentNsec(nip19.nsecEncode(secretKey));
+        if (nostrService.isNip07Signer()) {
+          setCurrentNsec("");
+        } else {
+          const secretKey = nostrService.getSecretKey();
+          if (secretKey) {
+            setCurrentNsec(nip19.nsecEncode(secretKey));
+          } else {
+            setCurrentNsec("");
+          }
         }
       } catch (err) {
         console.error("Anahtar bilgileri yüklenemedi", err);
@@ -53,8 +107,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       return;
     }
 
-    if (passphrase.length < 4) {
-      setStatusMsg({ text: "Parola en az 4 karakter olmalıdır.", isError: true });
+    const strength = validateAndEvaluatePassphrase(passphrase);
+    if (!strength.isValid) {
+      setStatusMsg({ text: strength.errorMessage || "Parola en az 8 karakter olmalıdır.", isError: true });
       return;
     }
 
@@ -88,7 +143,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       setCurrentPubkey(user.pubkey);
       setCurrentNpub(nip19.npubEncode(user.pubkey));
       const secretKey = nostrService.getSecretKey();
-      setCurrentNsec(nip19.nsecEncode(secretKey));
+      if (secretKey) {
+        setCurrentNsec(nip19.nsecEncode(secretKey));
+      }
 
       onKeyUpdated();
     } catch (err: any) {
@@ -160,7 +217,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           </div>
         )}
 
-        {currentNsec && (
+        {nostrService.isNip07Signer() ? (
+          <div>
+            <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Secret Key:</label>
+            <span style={{ fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic" }}>
+              Secret key NIP-07 eklentisinde saklanıyor, buradan görüntülenemez.
+            </span>
+          </div>
+        ) : currentNsec ? (
           <div>
             <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Mevcut Secret Key (nsec):</label>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
@@ -176,7 +240,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {hasStoredKey && (
           <div style={{ marginTop: "16px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
@@ -201,6 +265,136 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Relay Yönetimi Bölümü */}
+      <div
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "8px",
+          padding: "16px",
+          marginBottom: "24px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
+          <h3 style={{ fontSize: "15px", margin: 0, color: "var(--text-primary)" }}>
+            🌐 Relay Yönetimi
+          </h3>
+          <button
+            type="button"
+            onClick={handleResetRelays}
+            style={{
+              padding: "4px 10px",
+              fontSize: "12px",
+              cursor: "pointer",
+              border: "1px solid var(--input-border)",
+              borderRadius: "4px",
+              background: "var(--bg-secondary)",
+              color: "var(--text-primary)",
+            }}
+          >
+            Varsayılana Sıfırla
+          </button>
+        </div>
+
+        {relayMsg && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "6px",
+              marginBottom: "12px",
+              fontSize: "13px",
+              color: relayMsg.isError ? "#dc2626" : "#16a34a",
+              backgroundColor: "var(--bg-secondary)",
+              border: `1px solid ${relayMsg.isError ? "#fca5a5" : "#86efac"}`,
+            }}
+          >
+            {relayMsg.text}
+          </div>
+        )}
+
+        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px 0" }}>
+          {relays.map((url) => {
+            const status = nostrService.getRelayStatuses().find((s) => s.url === url);
+            const isConnected = status?.connected ?? false;
+            return (
+              <li
+                key={url}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  borderBottom: "1px solid var(--border-color)",
+                  fontSize: "13px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor: isConnected ? "#22c55e" : "#ef4444",
+                      display: "inline-block",
+                    }}
+                    title={isConnected ? "Bağlı" : "Bağlantı yok"}
+                  />
+                  <code style={{ color: "var(--text-primary)" }}>{url}</code>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRelay(url)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#ef4444",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                  }}
+                  title="Relay'i kaldır"
+                >
+                  🗑️
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <form onSubmit={handleAddRelay} style={{ display: "flex", gap: "8px" }}>
+          <input
+            type="text"
+            placeholder="wss://relay.example.com"
+            value={newRelayUrl}
+            onChange={(e) => setNewRelayUrl(e.target.value)}
+            style={{
+              flex: 1,
+              padding: "8px 12px",
+              fontSize: "13px",
+              border: "1px solid var(--input-border)",
+              backgroundColor: "var(--bg-surface)",
+              color: "var(--text-primary)",
+              borderRadius: "6px",
+            }}
+            required
+          />
+          <button
+            type="submit"
+            style={{
+              padding: "8px 14px",
+              background: "var(--accent-blue)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            + Relay Ekle
+          </button>
+        </form>
       </div>
 
       {/* Secret Key Form */}
@@ -238,6 +432,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
               }}
               required
             />
+            {passphrase.length > 0 && (
+              <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--text-muted)" }}>
+                <span>Parola Gücü: </span>
+                <span style={{ color: validateAndEvaluatePassphrase(passphrase).color, fontWeight: "bold" }}>
+                  {validateAndEvaluatePassphrase(passphrase).label}
+                </span>
+                {!validateAndEvaluatePassphrase(passphrase).isValid && validateAndEvaluatePassphrase(passphrase).errorMessage && (
+                  <div style={{ color: "#ef4444", fontSize: "11px", marginTop: "2px" }}>
+                    {validateAndEvaluatePassphrase(passphrase).errorMessage}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

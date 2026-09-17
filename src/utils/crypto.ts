@@ -16,16 +16,22 @@ export async function decryptContent(ciphertext: string, secretKey: Uint8Array, 
 // NIP-59 Gift Wrap Zarfı Oluşturma (kind: 1059)
 export function createGiftWrap(
   innerEventContent: string,
-  userSecretKey: Uint8Array
+  userSecretKey: Uint8Array,
+  tags: string[][] = [["private", "true"]]
 ): any {
   const userPubkey = getPublicKey(userSecretKey);
+
+  const rumorTags = [...tags];
+  if (!rumorTags.some((t) => t[0] === "private")) {
+    rumorTags.push(["private", "true"]);
+  }
 
   // 1. İç Olay (Rumor - Unsigned Event): Gerçek not içeriği
   const rumor = {
     kind: 30818, // NIP-54 Private Wiki Notu
     content: innerEventContent,
     created_at: Math.floor(Date.now() / 1000),
-    tags: [["private", "true"]],
+    tags: rumorTags,
     pubkey: userPubkey,
   };
 

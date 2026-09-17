@@ -10,7 +10,7 @@
 - ⚡ **Offline-First Mimari:** IndexedDB katmanı sayesinde sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten (`@nostr-dev-kit/ndk-cache-dexie`) ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
 - 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View (`react-force-graph`):** Notlar arasındaki bağlantılar otomatik ayrıştırılarak sürükleyip bırakılabilir, yakınlaştırılabilir, 2D ve 3D modları arasında geçiş yapılabilir interaktif ağ haritası oluşturulur.
-- 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya ephemeral (geçici) key kullanımı desteklenir.
+- 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya misafir modunda geçici (ephemeral) key kullanımı desteklenir.
 - 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
 
 ---
@@ -62,17 +62,24 @@ nostr-second-brain/
 ├── src/
 │   ├── main.tsx             # React giriş noktası
 │   ├── App.tsx              # Ana uygulama bileşeni (State, Offline Sync, Formlar)
-│   ├── nostr.ts            # NDK, NIP-49 oturumu ve Dexie IndexedDB cache yapılandırması
+│   ├── App.css              # Uygulama CSS stilleri ve tema değişkenleri
+│   ├── nostr.ts            # NDK, NIP-49 oturumu, relay yönetimi ve Dexie IndexedDB cache yapılandırması
 │   ├── components/
 │   │   ├── KeyLoginForm.tsx # NIP-49 Parola ile giriş ve anahtar kasası formu
-│   │   ├── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
-│   │   └── SimpleGraphView.tsx # react-force-graph ile Obsidian tarzı 2D/3D interaktif ağ haritası
+│   │   ├── MarkdownToolbar.tsx # Editör formatlama araç çubuğu
+│   │   ├── RelayStatusIndicator.tsx # Bağlı relay durumu ve canlı istatistik göstergesi
+│   │   ├── SettingsView.tsx # NIP-49 Anahtar kasası ve Relay yönetim ekranı
+│   │   ├── SimpleGraphView.tsx # react-force-graph ile Obsidian tarzı 2D/3D interaktif ağ haritası
+│   │   ├── VersionHistoryModal.tsx # Not versiyon geçmişi ve geri yükleme penceresi
+│   │   └── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
 │   └── utils/
-│       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve localStorage kilit yönetimi
-│       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
-│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Links) oluşturucu
 │       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
-│       └── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma fonksiyonları
+│       ├── exportUtils.ts   # Markdown (.md) ve JSON dışa aktarma fonksiyonları
+│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Links) oluşturucu
+│       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve parola doğrulama yönetimi
+│       ├── sampleNote.ts    # Varsayılan başlangıç notu içeriği
+│       ├── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma ve doğrulama fonksiyonları
+│       └── wikilink.ts      # NIP-54 Regex, Türkçe uyumlu slugify ve bağlantı ayrıştırıcı
 ├── Dockerfile              # Docker görsel (image) yapılandırması
 ├── docker-compose.yml      # Docker Compose servis yapılandırması
 ├── .dockerignore           # Docker derleme harici tutulan dosyalar
@@ -82,6 +89,15 @@ nostr-second-brain/
 ├── vite.config.ts
 └── README.md
 ```
+
+---
+
+## 🔑 Kimlik Yönetimi & Misafir Modu (Ephemeral Key)
+
+Uygulama 3 farklı kimlik doğrulama yöntemini destekler:
+1. **NIP-49 Kasalı Oturum (Önerilen):** `nsec` anahtarınız en az 8 karakterli parola ile scrypt + XChaCha20-Poly1305 algoritması kullanılarak `ncryptsec` formatında şifrelenir ve yerel depolamada tutulur.
+2. **NIP-07 Eklentileri:** Alby, nos2x vb. tarayıcı eklentileri üzerinden secret key sayfaya verilmeden güvenli imzalama yapılır.
+3. **Misafir Modu (Ephemeral Key):** Kasa kurulmamışsa ve NIP-07 eklentisi yoksa uygulama bellekte geçici bir key oluşturur. Üst bantta uyarı verilir ve tek tıkla Ayarlar sekmesinden bu key kalıcı NIP-49 kasasına yükseltilebilir.
 
 ---
 

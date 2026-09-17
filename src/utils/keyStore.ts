@@ -3,6 +3,42 @@ import * as nip49 from "nostr-tools/nip49";
 
 const STORAGE_KEY = "nostr_encrypted_private_key";
 
+export interface PassphraseValidationResult {
+  isValid: boolean;
+  score: number; // 0..4
+  label: "Çok Zayıf" | "Zayıf" | "Orta" | "Güçlü" | "Çok Güçlü";
+  color: string;
+  errorMessage?: string;
+}
+
+export function validateAndEvaluatePassphrase(passphrase: string): PassphraseValidationResult {
+  if (!passphrase || passphrase.length < 8) {
+    return {
+      isValid: false,
+      score: 0,
+      label: "Çok Zayıf",
+      color: "#ef4444",
+      errorMessage: "Parola en az 8 karakter olmalıdır.",
+    };
+  }
+
+  let score = 0;
+  if (passphrase.length >= 8) score += 1;
+  if (passphrase.length >= 12) score += 1;
+  if (/[A-Z]/.test(passphrase) && /[a-z]/.test(passphrase)) score += 1;
+  if (/\d/.test(passphrase) || /[^A-Za-z0-9]/.test(passphrase)) score += 1;
+
+  const labels: Array<PassphraseValidationResult["label"]> = ["Zayıf", "Orta", "Güçlü", "Çok Güçlü", "Çok Güçlü"];
+  const colors = ["#f97316", "#eab308", "#3b82f6", "#10b981", "#22c55e"];
+
+  return {
+    isValid: true,
+    score,
+    label: labels[score],
+    color: colors[score],
+  };
+}
+
 export class KeyStoreService {
   /**
    * Private key'i (nsec) kullanıcı parolası ile şifreler (ncryptsec) ve localStorage'a kaydeder.

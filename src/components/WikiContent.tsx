@@ -11,7 +11,7 @@ interface WikiContentProps {
 export const WikiContent: React.FC<WikiContentProps> = ({ content, onNavigate }) => {
   // Replace [[target|label]] or [[target]] with [label](wikilink:slug)
   const preprocessWikilinks = (text: string): string => {
-    return text.replace(/\[\[([^\]\|]+)(?:\|([^\]]+))?\]\]/g, (_, target, label) => {
+    return text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, label) => {
       const rawTarget = target.trim();
       const displayLabel = label ? label.trim() : rawTarget;
       const targetSlug = slugify(rawTarget);

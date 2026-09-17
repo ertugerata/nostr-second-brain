@@ -2,25 +2,78 @@ import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from "@nostr-dev-k
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { KeyStoreService } from "./utils/keyStore";
 
-const DEFAULT_RELAYS = [
+export const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
   "wss://nos.lol",
   "wss://relay.nostr.band"
 ];
+
+const RELAY_STORAGE_KEY = "nostr_user_relays";
+
+export function getStoredRelays(): string[] {
+  const stored = localStorage.getItem(RELAY_STORAGE_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {
+      console.warn("Relay listesi okunamadı, varsayılana dönülüyor", e);
+    }
+  }
+  return DEFAULT_RELAYS;
+}
 
 export class NostrService {
   private static instance: NostrService;
   public ndk: NDK;
   public isConnected: boolean = false;
   private cacheAdapter: NDKCacheAdapterDexie;
+  private currentRelays: string[];
 
   private constructor() {
     this.cacheAdapter = new NDKCacheAdapterDexie({ dbName: "nostr-second-brain-db" });
+    this.currentRelays = getStoredRelays();
 
     this.ndk = new NDK({
-      explicitRelayUrls: DEFAULT_RELAYS,
+      explicitRelayUrls: this.currentRelays,
       cacheAdapter: this.cacheAdapter,
     });
+  }
+
+  public getRelayUrls(): string[] {
+    return [...this.currentRelays];
+  }
+
+  public async addRelay(url: string): Promise<boolean> {
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("wss://") && !trimmed.startsWith("ws://")) {
+      throw new Error("Relay adresi wss:// veya ws:// ile başlamalıdır.");
+    }
+    if (this.currentRelays.includes(trimmed)) {
+      return false;
+    }
+    this.currentRelays.push(trimmed);
+    localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify(this.currentRelays));
+    this.ndk.addExplicitRelay(trimmed);
+    return true;
+  }
+
+  public async removeRelay(url: string): Promise<boolean> {
+    const index = this.currentRelays.indexOf(url);
+    if (index === -1) return false;
+    this.currentRelays.splice(index, 1);
+    localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify(this.currentRelays));
+    const relay = this.ndk.pool.relays.get(url);
+    if (relay) {
+      this.ndk.pool.removeRelay(url);
+    }
+    return true;
+  }
+
+  public async resetRelays(): Promise<void> {
+    this.currentRelays = [...DEFAULT_RELAYS];
+    localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify(this.currentRelays));
+    DEFAULT_RELAYS.forEach((r) => this.ndk.addExplicitRelay(r));
   }
 
   public static getInstance(): NostrService {
@@ -34,6 +87,8 @@ export class NostrService {
 
   public async connect(): Promise<void> {
     if (this.isConnected) return;
+
+    localStorage.removeItem("nostr_local_secret_key");
 
     if (window.nostr) {
       try {
@@ -185,7 +240,14 @@ export class NostrService {
     return deleteEvent;
   }
 
-  public getSecretKey(): Uint8Array {
+  public isNip07Signer(): boolean {
+    return !!(this.ndk.signer && this.ndk.signer instanceof NDKNip07Signer);
+  }
+
+  public getSecretKey(): Uint8Array | null {
+    if (this.isNip07Signer()) {
+      return null;
+    }
     if (this.userSecretKey) {
       return this.userSecretKey;
     }
@@ -197,16 +259,7 @@ export class NostrService {
         return this.userSecretKey;
       }
     }
-    // Fallback if no private key is directly accessible (e.g., NIP-07)
-    let stored = localStorage.getItem("nostr_local_secret_key");
-    if (!stored) {
-      const newKey = crypto.getRandomValues(new Uint8Array(32));
-      stored = Array.from(newKey).map(b => b.toString(16).padStart(2, "0")).join("");
-      localStorage.setItem("nostr_local_secret_key", stored);
-    }
-    const match = stored.match(/.{1,2}/g)!;
-    this.userSecretKey = new Uint8Array(match.map((byte) => parseInt(byte, 16)));
-    return this.userSecretKey;
+    return null;
   }
 }
 
