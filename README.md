@@ -9,9 +9,37 @@
 - 🔓 **Sıfır Lock-in (Tam Veri Mülkiyeti):** Notlarınız merkezi bir sunucuda kilitli kalmaz. Verileriniz Nostr event'leri olarak sizin tarafınızdan imzalanır ve seçtiğiniz relay'lerde saklanır.
 - ⚡ **Offline-First Mimari:** IndexedDB katmanı sayesinde sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten (`@nostr-dev-kit/ndk-cache-dexie`) ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
-- 🕸️ **Dinamik Graph View:** Notlar arasındaki bağlantılar otomatik ayrıştırılarak notlar arası ilişki ağ haritası (Nodes & Edges) çıkarılır.
+- 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View (`react-force-graph`):** Notlar arasındaki bağlantılar otomatik ayrıştırılarak sürükleyip bırakılabilir, yakınlaştırılabilir, 2D ve 3D modları arasında geçiş yapılabilir interaktif ağ haritası oluşturulur.
 - 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya ephemeral (geçici) key kullanımı desteklenir.
 - 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
+
+---
+
+## 🔗 Notlar Arasında Link Verme & Grafik Görünümü (Graph View)
+
+Obsidian tarzı ağ haritasında notlarınızı birbirine bağlamak ve ilişkilerini görselleştirmek son derece kolaydır.
+
+### 1. Wikilink Kullanarak Notları Bağlama
+Not yazarken veya düzenlerken metin içerisinde iki köşeli parantez `[[...]]` kullanarak diğer notlara referans verebilirsiniz:
+
+- **Doğrudan Not Başlığı/Slug Bağlantısı:**
+  ```markdown
+  Bu konuda daha fazla bilgi için [[Nostr Protokolü]] notuna bakabilirsiniz.
+  ```
+- **Özel Etiketli / Görünen İsimli Bağlantı (`[[slug|Görünen Ad]]`):**
+  ```markdown
+  Ayrıca [[nostr-rehberi|Nostr Rehberimizi]] inceleyebilirsiniz.
+  ```
+
+### 2. Grafik Görünümünde (Graph View) Nasıl Görünür?
+- **Otomatik Düğüm (Node) ve Bağlantı (Edge) Oluşturma:** Notu kaydettiğinizde sistem içerikteki tüm `[[wikilink]]` bağlantılarını tarar ve ağ haritasında kaynak not ile hedef not arasına yönlü/yönsüz bir çizgi ekler.
+- **Henüz Oluşturulmamış Reference Notları (Ghost Nodes):** Eğer referans verdiğiniz not henüz oluşturulmadıysa, grafik haritasında kesikli çizgili ve uyarı simgeli turuncu bir "Oluşturulmadı" düğümü olarak görünür. Üzerine tıklayarak doğrudan yeni not alanına geçebilirsiniz.
+- **İnteraktif 2D & 3D Ağ Haritası Kontrolleri:**
+  - **2D / 3D Mod Geçişi:** Sağ üstteki `2D` / `3D` butonları ile grafik modunu anında değiştirebilirsiniz.
+  - **Düğüm Sürükleme (Drag & Drop):** Düğümleri fare ile tutarak istediğiniz konuma taşıyabilirsiniz.
+  - **Süzme & Arama:** Arama çubuğuna not adı yazarak ağ üzerindeki ilgili düğümleri anlık olarak vurgulayabilirsiniz.
+  - **Yakınlaştırma & Sığdırma:** `➕`, `➖` ve `🔍 Sığdır` butonları ile grafiğe odaklanabilirsiniz.
+  - **Not Seçimi:** Herhangi bir düğüme tıkladığınızda o not otomatik olarak editörde açılır.
 
 ---
 
@@ -38,11 +66,11 @@ nostr-second-brain/
 │   ├── components/
 │   │   ├── KeyLoginForm.tsx # NIP-49 Parola ile giriş ve anahtar kasası formu
 │   │   ├── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
-│   │   └── SimpleGraphView.tsx # Notlar arası ilişki grafiği (Graph View) görselleştiricisi
+│   │   └── SimpleGraphView.tsx # react-force-graph ile Obsidian tarzı 2D/3D interaktif ağ haritası
 │   └── utils/
 │       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve localStorage kilit yönetimi
 │       ├── wikilink.ts      # NIP-54 Regex ve Slug dönüştürücü
-│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Edges) oluşturucu
+│       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Links) oluşturucu
 │       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
 │       └── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma fonksiyonları
 ├── Dockerfile              # Docker görsel (image) yapılandırması
@@ -52,21 +80,7 @@ nostr-second-brain/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-├── README.md
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    ├── nostr.ts
-    ├── components/
-    │   ├── KeyLoginForm.tsx
-    │   ├── SimpleGraphView.tsx
-    │   └── WikiContent.tsx
-    └── utils/
-        ├── crypto.ts
-        ├── graphBuilder.ts
-        ├── keyStore.ts
-        ├── unwrap.ts
-        └── wikilink.ts
+└── README.md
 ```
 
 ---

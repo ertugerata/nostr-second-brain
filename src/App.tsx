@@ -44,7 +44,7 @@ export function App() {
     return map;
   });
 
-  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
+  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [statusText, setStatusText] = useState("Sistem hazır.");
   const [currentUserPubkey, setCurrentUserPubkey] = useState<string>("");
   const [filterMode, setFilterMode] = useState<"all" | "mine" | "others">("all");
@@ -716,7 +716,7 @@ export function App() {
 
         {activeTab === "graph" && (
           <div className="graph-container">
-            <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} />
+            <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} theme={theme} />
           </div>
         )}
 
