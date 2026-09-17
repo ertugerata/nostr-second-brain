@@ -1,8 +1,19 @@
 services:
-  nostr-second-brain:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  # Web Uygulaması (Nostr Second Brain)
+  app:
+    build: .
     ports:
-      - "8080:80"
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # Self-Hosted Private Relay (strfry v1.1.3)
+  private-relay:
+    image: ghcr.io/hoytech/strfry:v1.1.3
+    ports:
+      - "7777:7777"
+    volumes:
+      - ./strfry-data:/app/strfry-db
+    command: ["strfry", "relay"]
     restart: unless-stopped
