@@ -14,6 +14,11 @@ export function unwrapGift(giftWrapEvent: any, userSecretKey: Uint8Array): any |
     const rumorJson = nip44.v2.decrypt(sealEvent.content, sealConversationKey);
     const rumor = JSON.parse(rumorJson);
 
+    if (rumor.pubkey !== sealEvent.pubkey) {
+      console.warn("Pubkey uyuşmazlığı, olası spoofing girişimi");
+      return null;
+    }
+
     return rumor; // Gerçek not içeriğine ulaştık
   } catch (err) {
     console.error("Zarf açılamadı (Farklı anahtar veya bozuk veri):", err);

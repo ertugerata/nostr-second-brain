@@ -6,14 +6,15 @@ export interface ParsedLink {
 
 export function slugify(text: string): string {
   return text
-    .toLowerCase()
+    .toLocaleLowerCase("tr-TR")
     .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "");
+    .replace(/[^\p{L}\p{N}-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export function extractWikilinks(content: string): ParsedLink[] {
-  const regex = /\[\[([^\]\|]+)(?:\|([^\]]+))?\]\]/g;
+  const regex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
   const links: ParsedLink[] = [];
   let match: RegExpExecArray | null;
 

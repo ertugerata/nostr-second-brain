@@ -4,6 +4,7 @@ export interface NoteItem {
   content: string;
   createdAt: number;
   pubkey: string;
+  isPrivate?: boolean;
 }
 
 /**
