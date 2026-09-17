@@ -4,14 +4,18 @@ import { NoteItem } from "../utils/exportUtils";
 interface VersionHistoryModalProps {
   slug: string;
   versions: NoteItem[];
+  currentUserPubkey?: string;
   onSelectVersion: (version: NoteItem) => void;
+  onDeleteVersion?: (version: NoteItem) => void;
   onClose: () => void;
 }
 
 export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   slug,
   versions,
+  currentUserPubkey,
   onSelectVersion,
+  onDeleteVersion,
   onClose,
 }) => {
   const sortedVersions = [...versions].sort((a, b) => b.createdAt - a.createdAt);
@@ -138,21 +142,44 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
                       )
                     ),
                     React.createElement(
-                      "button",
-                      {
-                        onClick: () => onSelectVersion(ver),
-                        style: {
-                          padding: "4px 10px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          backgroundColor: "var(--accent-blue)",
-                          color: "#ffffff",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
+                      "div",
+                      { style: { display: "flex", gap: "6px" } },
+                      ver.pubkey && currentUserPubkey && ver.pubkey === currentUserPubkey && onDeleteVersion &&
+                        React.createElement(
+                          "button",
+                          {
+                            onClick: () => onDeleteVersion(ver),
+                            style: {
+                              padding: "4px 10px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              backgroundColor: "#dc2626",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                            },
+                            title: "Bu versiyonu sil (NIP-09)",
+                          },
+                          "🗑️ Sil"
+                        ),
+                      React.createElement(
+                        "button",
+                        {
+                          onClick: () => onSelectVersion(ver),
+                          style: {
+                            padding: "4px 10px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            backgroundColor: "var(--accent-blue)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                          },
                         },
-                      },
-                      "Editöre Yükle"
+                        "Editöre Yükle"
+                      )
                     )
                   ),
                   React.createElement(
