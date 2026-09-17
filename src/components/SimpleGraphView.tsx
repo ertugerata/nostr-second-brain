@@ -592,3 +592,5 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
     </div>
   );
 };
+
+export default SimpleGraphView;
