@@ -1,11 +1,28 @@
 import { describe, it, expect } from "vitest";
 import { generateSecretKey, getPublicKey, finalizeEvent, nip44 } from "nostr-tools";
 import { unwrapGift } from "./unwrap";
-import { createGiftWrap } from "./crypto";
+import { createGiftWrap, encryptContent, decryptContent } from "./crypto";
 import { slugify } from "./wikilink";
 import { validateAndEvaluatePassphrase } from "./keyStore";
 
 describe("unwrapGift & Security Tests", () => {
+  it("encrypts and decrypts content using NIP-44 (encryptContent / decryptContent)", () => {
+    const senderSk = generateSecretKey();
+    const recipientSk = generateSecretKey();
+    const recipientPk = getPublicKey(recipientSk);
+    const senderPk = getPublicKey(senderSk);
+
+    // Self-encryption / decryption
+    const selfEncrypted = encryptContent("Self secret note", senderSk);
+    const selfDecrypted = decryptContent(selfEncrypted, senderSk);
+    expect(selfDecrypted).toBe("Self secret note");
+
+    // Peer-to-peer encryption / decryption
+    const p2pEncrypted = encryptContent("Secret for peer", senderSk, recipientPk);
+    const p2pDecrypted = decryptContent(p2pEncrypted, recipientSk, senderPk);
+    expect(p2pDecrypted).toBe("Secret for peer");
+  });
+
   it("unwraps a valid Gift Wrap event successfully", () => {
     const userSecretKey = generateSecretKey();
     const giftWrap = createGiftWrap("Test Secret Content", userSecretKey, [["d", "secret-slug"]]);

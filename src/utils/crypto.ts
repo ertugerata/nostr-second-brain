@@ -1,15 +1,16 @@
 import { nip44, generateSecretKey, getPublicKey, finalizeEvent } from "nostr-tools";
 
-// Not İçeriğini NIP-44 ile Kendi Pubkey'inize Şifreleme
-export async function encryptContent(content: string, secretKey: Uint8Array): Promise<string> {
-  const pubkey = getPublicKey(secretKey);
-  const conversationKey = nip44.v2.utils.getConversationKey(secretKey, pubkey);
+// Not İçeriğini veya veriyi NIP-44 ile şifreleme (alıcı pubkey belirtilmezse kendi pubkey'i kullanılır)
+export function encryptContent(content: string, secretKey: Uint8Array, recipientPubkey?: string): string {
+  const targetPubkey = recipientPubkey || getPublicKey(secretKey);
+  const conversationKey = nip44.v2.utils.getConversationKey(secretKey, targetPubkey);
   return nip44.v2.encrypt(content, conversationKey);
 }
 
-// Şifreli İçeriği Çözme
-export async function decryptContent(ciphertext: string, secretKey: Uint8Array, senderPubkey: string): Promise<string> {
-  const conversationKey = nip44.v2.utils.getConversationKey(secretKey, senderPubkey);
+// NIP-44 ile şifreli içeriği çözme (gönderen pubkey belirtilmezse kendi pubkey'i kullanılır)
+export function decryptContent(ciphertext: string, secretKey: Uint8Array, senderPubkey?: string): string {
+  const targetPubkey = senderPubkey || getPublicKey(secretKey);
+  const conversationKey = nip44.v2.utils.getConversationKey(secretKey, targetPubkey);
   return nip44.v2.decrypt(ciphertext, conversationKey);
 }
 
@@ -35,9 +36,8 @@ export function createGiftWrap(
     pubkey: userPubkey,
   };
 
-  // 2. Mühürleme (Seal - kind: 13): Rumor'u kullanıcının kendi anahtarıyla şifreler
-  const sealConversationKey = nip44.v2.utils.getConversationKey(userSecretKey, userPubkey);
-  const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey);
+  // 2. Mühürleme (Seal - kind: 13): Rumor'u kullanıcının kendi anahtarıyla şifreler (encryptContent)
+  const encryptedRumor = encryptContent(JSON.stringify(rumor), userSecretKey, userPubkey);
 
   const sealEvent = finalizeEvent({
     kind: 13,
@@ -46,10 +46,9 @@ export function createGiftWrap(
     tags: [],
   }, userSecretKey);
 
-  // 3. Gift Wrap (kind: 1059): Ephemeral (geçici) key ile zarflama
+  // 3. Gift Wrap (kind: 1059): Ephemeral (geçici) key ile zarflama (encryptContent)
   const ephemeralSecretKey = generateSecretKey();
-  const wrapConversationKey = nip44.v2.utils.getConversationKey(ephemeralSecretKey, userPubkey);
-  const encryptedSeal = nip44.v2.encrypt(JSON.stringify(sealEvent), wrapConversationKey);
+  const encryptedSeal = encryptContent(JSON.stringify(sealEvent), ephemeralSecretKey, userPubkey);
 
   const giftWrapEvent = finalizeEvent({
     kind: 1059,
