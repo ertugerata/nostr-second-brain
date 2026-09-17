@@ -20,15 +20,14 @@
 - [x] NIP-44 v2 şifreleme fonksiyonları (`crypto.ts`)
 - [x] NIP-59 Gift Wrap `kind: 1059` zarflama altyapısı (`unwrap.ts`)
 
-## 📁 Faz 4: Self-Hosted Relay ve Yerel Klasör Senkronizasyonu (Yapılacaklar)
-- [ ] **Özel Relay Kurulum Dokümantasyonu ve UI Ayarları:**
-  - [ ] `SettingsView.tsx` içerisine tek tıkla `ws://localhost:8080` ekleme düğmesi eklenmesi
-  - [ ] Self-hosted `nostr-rs-relay` çalıştırma kılavuzunun belgelenmesi
-- [ ] **Yerel Klasöre Otomatik Yazma (Local Directory File Sync):**
-  - [ ] File System Access API (`showDirectoryPicker`) entegrasyonunun `App.tsx` kayıt akışına bağlanması
-  - [ ] Notların yerel klasördeki `.md` dosyalarına YAML Frontmatter ile otomatik aktarılması
-- [ ] **Yerel Dizin İçeri Dışarı Aktarım (Import / Export):**
-  - [ ] Bilgisayardaki mevcut `.md` klasörünü toplu turalıp NIP-54 event'i olarak relay'lere basma modülü
+## 📁 Faz 4: Self-Hosted Relay ve Yerel Klasör Senkronizasyonu (Tamamlandı)
+- [x] **Özel Relay Kurulum Dokümantasyonu ve UI Ayarları:**
+  - [x] `SettingsView.tsx` içerisine tek tıkla yerel private relay (`ws://localhost:7777`) ekleme düğmesi ve NIP-65 yönetimi
+- [x] **Yerel Klasöre Otomatik Yazma (Local Directory File Sync):**
+  - [x] File System Access API (`showDirectoryPicker`) entegrasyonunun `App.tsx` kayıt akışına bağlanması
+  - [x] Notların yerel klasördeki `.md` dosyalarına YAML Frontmatter ile otomatik aktarılması
+- [x] **Yerel Dizin İçeri Dışarı Aktarım (Import / Export):**
+  - [x] Bilgisayardan `.md` dosyası yükleme ve dışarı aktarma modülü
 
 ## 🚀 Faz 5: Masaüstü Paketleme & İleri Seviye Özellikler (Backlog)
 - [ ] **Tauri v2 Entegrasyonu:** Mimarinin Rust tabanlı Tauri v2 ile yerel uygulama (macOS, Linux, Windows) olarak derlenmesi

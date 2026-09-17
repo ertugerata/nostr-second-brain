@@ -14,6 +14,7 @@ import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
 import { KeyStoreService } from "./utils/keyStore";
 import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
 import { getDefaultSampleNote } from "./utils/sampleNote";
+import { LocalFileSyncService } from "./utils/fileSync";
 import { createGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
 import "./App.css";
@@ -336,6 +337,9 @@ export function App() {
         updated.set(noteSlug, [...existingList, savedItem]);
         return updated;
       });
+
+      // Otomatik yerel disk senkronizasyonu
+      await LocalFileSyncService.saveNoteToLocalDisk(noteSlug, savedItem.content, savedItem.pubkey, savedItem.createdAt);
 
       setStatusText(isPrivate ? "Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!" : "Not başarıyla kaydedildi!");
     } catch (error) {
