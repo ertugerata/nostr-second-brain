@@ -2,8 +2,9 @@ import React, { useEffect, useState, useRef } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
-import { SimpleGraphView } from "./components/SimpleGraphView";
 import { MarkdownToolbar } from "./components/MarkdownToolbar";
+
+const SimpleGraphView = React.lazy(() => import("./components/SimpleGraphView"));
 import { KeyLoginForm } from "./components/KeyLoginForm";
 import { SettingsView } from "./components/SettingsView";
 import { VersionHistoryModal } from "./components/VersionHistoryModal";
@@ -868,7 +869,15 @@ export function App() {
 
         {activeTab === "graph" && (
           <div className="graph-container">
-            <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} theme={theme} />
+            <React.Suspense
+              fallback={
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "14px" }}>
+                  ⌛ Graph View yükleniyor...
+                </div>
+              }
+            >
+              <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} theme={theme} />
+            </React.Suspense>
           </div>
         )}
 
