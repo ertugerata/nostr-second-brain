@@ -15,5 +15,6 @@ services:
       - "7777:7777"
     volumes:
       - ./strfry-data:/app/strfry-db
+      - ./strfry.conf:/etc/strfry.conf
     command: ["strfry", "relay"]
     restart: unless-stopped
