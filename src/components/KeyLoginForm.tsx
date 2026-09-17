@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { KeyStoreService } from "../utils/keyStore";
+import { KeyStoreService, validateAndEvaluatePassphrase } from "../utils/keyStore";
 import { nostrService } from "../nostr";
 
 interface KeyLoginFormProps {
@@ -12,9 +12,15 @@ export const KeyLoginForm: React.FC<KeyLoginFormProps> = ({ onSuccess }) => {
   const [passphrase, setPassphrase] = useState("");
   const [error, setError] = useState("");
 
+  const strength = validateAndEvaluatePassphrase(passphrase);
+
   // İlk Kurulum: nsec + Parola girerek kaydetme
   const handleSetup = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!strength.isValid) {
+      setError(strength.errorMessage || "Geçersiz parola.");
+      return;
+    }
     try {
       KeyStoreService.encryptAndSaveKey(nsec, passphrase);
       handleUnlock(e);
@@ -63,6 +69,19 @@ export const KeyLoginForm: React.FC<KeyLoginFormProps> = ({ onSuccess }) => {
             style={{ width: "100%", padding: 8 }}
             required
           />
+          {!hasKey && passphrase.length > 0 && (
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              <span>Parola Gücü: </span>
+              <span style={{ color: strength.color, fontWeight: "bold" }}>
+                {strength.label}
+              </span>
+              {!strength.isValid && strength.errorMessage && (
+                <div style={{ color: "#ef4444", fontSize: 11, marginTop: 2 }}>
+                  {strength.errorMessage}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <button type="submit" style={{ padding: 10, background: "#0f172a", color: "#fff", border: "none", borderRadius: 4 }}>

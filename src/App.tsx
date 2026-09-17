@@ -13,6 +13,8 @@ import { buildNoteGraph, GraphData } from "./utils/graphBuilder";
 import { KeyStoreService } from "./utils/keyStore";
 import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
 import { getDefaultSampleNote } from "./utils/sampleNote";
+import { createGiftWrap } from "./utils/crypto";
+import { unwrapGift } from "./utils/unwrap";
 import "./App.css";
 
 export function App() {
@@ -49,9 +51,145 @@ export function App() {
   const [currentUserPubkey, setCurrentUserPubkey] = useState<string>("");
   const [filterMode, setFilterMode] = useState<"all" | "mine" | "others">("all");
   const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "split">("edit");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Deleted event tracking refs to persist across load more subscriptions
+  const deletedEventIdsRef = useRef<Set<string>>(new Set());
+  const deletedCoordinatesRef = useRef<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleIncomingEvent = (event: NDKEvent) => {
+    if (event.kind === 5) {
+      const eTags = event.getMatchingTags("e").map((t) => t[1]);
+      const aTags = event.getMatchingTags("a").map((t) => t[1]);
+
+      eTags.forEach((id) => deletedEventIdsRef.current.add(id));
+      aTags.forEach((coord) => deletedCoordinatesRef.current.add(coord));
+
+      setNoteHistory((prevHistory) => {
+        const updated = new Map<string, NoteItem[]>();
+        prevHistory.forEach((items, noteSlug) => {
+          const filtered = items.filter((item) => {
+            const coord = `30818:${item.pubkey}:${item.slug}`;
+            const isDeleted = deletedEventIdsRef.current.has(item.id) || deletedCoordinatesRef.current.has(coord);
+            return !isDeleted && !eTags.includes(item.id) && !aTags.includes(coord);
+          });
+          if (filtered.length > 0) {
+            updated.set(noteSlug, filtered);
+          }
+        });
+        return updated;
+      });
+
+      setNotes((prevNotes) => {
+        const updated = new Map<string, NoteItem>();
+        prevNotes.forEach((item, noteSlug) => {
+          const coord = `30818:${item.pubkey}:${item.slug}`;
+          const isDeleted =
+            deletedEventIdsRef.current.has(item.id) ||
+            deletedCoordinatesRef.current.has(coord) ||
+            eTags.includes(item.id) ||
+            aTags.includes(coord);
+          if (!isDeleted) {
+            updated.set(noteSlug, item);
+          }
+        });
+        return updated;
+      });
+
+      return;
+    }
+
+    let noteSlug = "untitled";
+    let noteContent = event.content;
+    let eventPubkey = event.pubkey;
+    let createdAt = event.created_at || Math.floor(Date.now() / 1000);
+    const eventId = event.id;
+    let isNotePrivate = false;
+
+    if (event.kind === 1059) {
+      const secretKey = nostrService.getSecretKey();
+      if (!secretKey) return;
+      const rumor = unwrapGift(event.rawEvent ? event.rawEvent() : event, secretKey);
+      if (!rumor) return;
+      noteSlug = rumor.tags?.find((t: string[]) => t[0] === "d")?.[1] || "untitled";
+      noteContent = rumor.content;
+      eventPubkey = rumor.pubkey;
+      createdAt = rumor.created_at || createdAt;
+      isNotePrivate = true;
+    } else {
+      noteSlug = event.tagValue("d") || "untitled";
+      isNotePrivate = event.getMatchingTags("private").length > 0;
+    }
+
+    const coord = `30818:${eventPubkey}:${noteSlug}`;
+
+    if (deletedEventIdsRef.current.has(eventId) || deletedCoordinatesRef.current.has(coord)) {
+      return;
+    }
+
+    const newNoteItem: NoteItem = {
+      id: eventId,
+      slug: noteSlug,
+      content: noteContent,
+      createdAt,
+      pubkey: eventPubkey,
+      isPrivate: isNotePrivate,
+    };
+
+    setNoteHistory((prevHistory) => {
+      const updated = new Map(prevHistory);
+      const existingList = updated.get(noteSlug) || [];
+      if (!existingList.some((item) => item.id === newNoteItem.id)) {
+        const updatedList = [...existingList, newNoteItem];
+        updated.set(noteSlug, updatedList);
+      }
+      return updated;
+    });
+
+    setNotes((prevNotes) => {
+      const existing = prevNotes.get(noteSlug);
+      if (!existing || createdAt > existing.createdAt) {
+        const updated = new Map(prevNotes);
+        updated.set(noteSlug, newNoteItem);
+        return updated;
+      }
+      return prevNotes;
+    });
+  };
+
+  const handleLoadMoreNotes = () => {
+    if (isLoadingMore) return;
+
+    const allNotes = Array.from(notes.values());
+    if (allNotes.length === 0) return;
+
+    const oldestTimestamp = Math.min(...allNotes.map((n) => n.createdAt));
+    setIsLoadingMore(true);
+    setStatusText("Eski notlar çekiliyor...");
+
+    const sub = nostrService.ndk.subscribe(
+      { kinds: [30818 as number, 5 as number, 1059 as number], limit: 200, until: oldestTimestamp - 1 },
+      { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: true }
+    );
+
+    let count = 0;
+    sub.on("event", (event: NDKEvent) => {
+      handleIncomingEvent(event);
+      count++;
+    });
+
+    sub.on("eose", () => {
+      setIsLoadingMore(false);
+      setStatusText(`Eski notlar yüklendi (${count} yeni kayıt).`);
+    });
+
+    setTimeout(() => {
+      setIsLoadingMore(false);
+    }, 6000);
+  };
 
   // Load sample note into editor on first mount
   useEffect(() => {
@@ -85,91 +223,13 @@ export function App() {
         }
       }
 
-      // Deleted event tracking: set of event IDs and set of coordinates ("30818:pubkey:d-tag")
-      const deletedEventIds = new Set<string>();
-      const deletedCoordinates = new Set<string>();
-
       const sub = nostrService.ndk.subscribe(
-        { kinds: [30818 as number, 5 as number], limit: 200 },
+        { kinds: [30818 as number, 5 as number, 1059 as number], limit: 200 },
         { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: false }
       );
 
       sub.on("event", (event: NDKEvent) => {
-        if (event.kind === 5) {
-          // Process NIP-09 deletion event
-          const eTags = event.getMatchingTags("e").map((t) => t[1]);
-          const aTags = event.getMatchingTags("a").map((t) => t[1]);
-
-          eTags.forEach((id) => deletedEventIds.add(id));
-          aTags.forEach((coord) => deletedCoordinates.add(coord));
-
-          // Purge deleted events from state
-          setNoteHistory((prevHistory) => {
-            const updated = new Map<string, NoteItem[]>();
-            prevHistory.forEach((items, noteSlug) => {
-              const filtered = items.filter((item) => {
-                const coord = `30818:${item.pubkey}:${item.slug}`;
-                const isDeleted = deletedEventIds.has(item.id) || deletedCoordinates.has(coord);
-                return !isDeleted && !eTags.includes(item.id) && !aTags.includes(coord);
-              });
-              if (filtered.length > 0) {
-                updated.set(noteSlug, filtered);
-              }
-            });
-            return updated;
-          });
-
-          setNotes((prevNotes) => {
-            const updated = new Map<string, NoteItem>();
-            prevNotes.forEach((item, noteSlug) => {
-              const coord = `30818:${item.pubkey}:${item.slug}`;
-              const isDeleted = deletedEventIds.has(item.id) || deletedCoordinates.has(coord) || eTags.includes(item.id) || aTags.includes(coord);
-              if (!isDeleted) {
-                updated.set(noteSlug, item);
-              }
-            });
-            return updated;
-          });
-
-          return;
-        }
-
-        const noteSlug = event.tagValue("d") || "untitled";
-        const coord = `30818:${event.pubkey}:${noteSlug}`;
-
-        if (deletedEventIds.has(event.id) || deletedCoordinates.has(coord)) {
-          return;
-        }
-
-        const newNoteItem: NoteItem = {
-          id: event.id,
-          slug: noteSlug,
-          content: event.content,
-          createdAt: event.created_at!,
-          pubkey: event.pubkey,
-        };
-
-        // Update Note History map
-        setNoteHistory((prevHistory) => {
-          const updated = new Map(prevHistory);
-          const existingList = updated.get(noteSlug) || [];
-          if (!existingList.some((item) => item.id === newNoteItem.id)) {
-            const updatedList = [...existingList, newNoteItem];
-            updated.set(noteSlug, updatedList);
-          }
-          return updated;
-        });
-
-        // Update Latest Notes map
-        setNotes((prevNotes) => {
-          const existing = prevNotes.get(noteSlug);
-          if (!existing || event.created_at! > existing.createdAt) {
-            const updated = new Map(prevNotes);
-            updated.set(noteSlug, newNoteItem);
-            return updated;
-          }
-          return prevNotes;
-        });
+        handleIncomingEvent(event);
       });
     }
 
@@ -198,9 +258,11 @@ export function App() {
     const noteSlug = slugify(slug);
 
     try {
-      const event = new NDKEvent(nostrService.ndk);
-      event.kind = 30818;
-      event.content = content;
+      const userSecretKey = nostrService.getSecretKey();
+      if (isPrivate && !userSecretKey) {
+        setStatusText("Hata: Gizli not (Gift Wrap) şifrelemek için Secret Key gereklidir.");
+        return;
+      }
 
       const links = extractWikilinks(content);
       const userPubkey = nostrService.ndk.signer ? (await nostrService.ndk.signer.user()).pubkey : "";
@@ -218,20 +280,48 @@ export function App() {
         tags.push(["a", `30818:${userPubkey}:${link.target}`, "", "mention"]);
       });
 
-      event.tags = tags;
-      await event.sign();
+      let savedItem: NoteItem;
 
-      if (nostrService.ndk.cacheAdapter) {
-        await nostrService.ndk.cacheAdapter.setEvent(event, []);
+      if (isPrivate && userSecretKey) {
+        const giftWrapRaw = createGiftWrap(content, userSecretKey, tags);
+        const event = new NDKEvent(nostrService.ndk, giftWrapRaw);
+
+        if (nostrService.ndk.cacheAdapter) {
+          await nostrService.ndk.cacheAdapter.setEvent(event, []);
+        }
+
+        savedItem = {
+          id: event.id,
+          slug: noteSlug,
+          content,
+          createdAt: Math.floor(Date.now() / 1000),
+          pubkey: userPubkey,
+          isPrivate: true,
+        };
+
+        await event.publish();
+      } else {
+        const event = new NDKEvent(nostrService.ndk);
+        event.kind = 30818;
+        event.content = content;
+        event.tags = tags;
+        await event.sign();
+
+        if (nostrService.ndk.cacheAdapter) {
+          await nostrService.ndk.cacheAdapter.setEvent(event, []);
+        }
+
+        savedItem = {
+          id: event.id,
+          slug: noteSlug,
+          content: event.content,
+          createdAt: event.created_at || Math.floor(Date.now() / 1000),
+          pubkey: event.pubkey,
+          isPrivate: false,
+        };
+
+        event.publish().catch((err) => console.warn("Relay yayın hatası:", err));
       }
-
-      const savedItem: NoteItem = {
-        id: event.id,
-        slug: noteSlug,
-        content: event.content,
-        createdAt: event.created_at || Math.floor(Date.now() / 1000),
-        pubkey: event.pubkey,
-      };
 
       setNotes((prev) => {
         const updated = new Map(prev);
@@ -246,8 +336,7 @@ export function App() {
         return updated;
       });
 
-      event.publish().catch((err) => console.warn("Relay yayın hatası:", err));
-      setStatusText("Not başarıyla kaydedildi!");
+      setStatusText(isPrivate ? "Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!" : "Not başarıyla kaydedildi!");
     } catch (error) {
       console.error("Kaydetme hatası:", error);
       setStatusText("Hata oluştu!");
@@ -258,6 +347,7 @@ export function App() {
     const note = notes.get(selectedSlug);
     setSlug(selectedSlug);
     setContent(note ? note.content : "");
+    setIsPrivate(!!note?.isPrivate);
     setActiveTab("editor");
   };
 
@@ -354,12 +444,14 @@ export function App() {
 
   const handleExportCurrentNote = () => {
     if (!content.trim()) return;
+    const noteSlug = slugify(slug);
+    const existingNote = notes.get(noteSlug);
     exportNoteAsMarkdown({
-      id: notes.get(slug)?.id || "",
-      slug: slugify(slug),
+      id: existingNote?.id || "",
+      slug: noteSlug,
       content,
-      createdAt: notes.get(slug)?.createdAt || Math.floor(Date.now() / 1000),
-      pubkey: notes.get(slug)?.pubkey || "",
+      createdAt: existingNote?.createdAt || Math.floor(Date.now() / 1000),
+      pubkey: existingNote?.pubkey || "",
     });
   };
 
@@ -524,6 +616,29 @@ export function App() {
                 </div>
               );
             })}
+
+          {notes.size > 0 && (
+            <div style={{ padding: "12px 8px" }}>
+              <button
+                type="button"
+                onClick={handleLoadMoreNotes}
+                disabled={isLoadingMore}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  backgroundColor: "var(--bg-secondary)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--input-border)",
+                  borderRadius: "6px",
+                  cursor: isLoadingMore ? "not-allowed" : "pointer",
+                }}
+              >
+                {isLoadingMore ? "⌛ Yükleniyor..." : "📜 Daha Fazla Yükle (Eski Notlar)"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Alt Bölüm / Settings Button */}
@@ -539,6 +654,43 @@ export function App() {
 
       {/* Ana Çalışma Alanı */}
       <main className="main-content">
+        {!KeyStoreService.hasStoredKey() && !nostrService.isNip07Signer() && (
+          <div
+            style={{
+              backgroundColor: "rgba(234, 179, 8, 0.15)",
+              borderBottom: "1px solid rgba(234, 179, 8, 0.4)",
+              color: "var(--text-primary)",
+              padding: "8px 16px",
+              fontSize: "13px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <span>
+              💡 <strong>Misafir Modu:</strong> Notlarınız bu oturumdaki geçici (ephemeral) anahtar ile imzalanmaktadır. Kalıcı kılmak için Ayarlar'dan bir Secret Key tanımlayın.
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveTab("settings")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 600,
+                backgroundColor: "var(--accent-blue)",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🔑 Kalıcı Kasaya Yükselt
+            </button>
+          </div>
+        )}
+
         <header className="top-bar">
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <button

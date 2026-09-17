@@ -23,10 +23,10 @@ Kullanıcı notunu "gizli" sanıp kaydediyor ama içerik herkese açık relay'le
 Özellik tamamlanana kadar checkbox'ı UI'dan kaldırın veya yanına "Yakında" / "Deneysel — henüz aktif değil" uyarısı ekleyin, README'deki ilgili bölümü de buna göre güncelleyin.
 
 ### Kabul Kriterleri
-- [ ] `isPrivate=true` ile kaydedilen not relay'lere `kind: 1059` olarak gidiyor
-- [ ] Gönderen tarafın kendi client'ı notu tekrar açıp çözebiliyor
-- [ ] Ağ trafiği izlendiğinde (örn. relay tarafında) not içeriği okunamıyor
-- [ ] README'deki "Gizli Notlar" bölümü gerçek davranışla uyumlu
+- [x] `isPrivate=true` ile kaydedilen not relay'lere `kind: 1059` olarak gidiyor
+- [x] Gönderen tarafın kendi client'ı notu tekrar açıp çözebiliyor
+- [x] Ağ trafiği izlendiğinde (örn. relay tarafında) not içeriği okunamıyor
+- [x] README'deki "Gizli Notlar" bölümü gerçek davranışla uyumlu
 
 ---
 
@@ -49,8 +49,8 @@ if (rumor.pubkey !== sealEvent.pubkey) {
 ```
 
 ### Kabul Kriterleri
-- [ ] `rumor.pubkey !== sealEvent.pubkey` durumunda `unwrapGift` `null` dönüyor
-- [ ] Birim testi ile spoofing senaryosu doğrulanıyor
+- [x] `rumor.pubkey !== sealEvent.pubkey` durumunda `unwrapGift` `null` dönüyor
+- [x] Birim testi ile spoofing senaryosu doğrulanıyor
 
 ---
 
@@ -70,8 +70,8 @@ if (rumor.pubkey !== sealEvent.pubkey) {
 - Fallback rastgele key üretimini tamamen kaldır ya da en azından NIP-49 ile şifrele.
 
 ### Kabul Kriterleri
-- [ ] NIP-07 oturumunda `SettingsView` sahte bir nsec göstermiyor
-- [ ] localStorage'da düz metin private key oluşmuyor
+- [x] NIP-07 oturumunda `SettingsView` sahte bir nsec göstermiyor
+- [x] localStorage'da düz metin private key oluşmuyor
 
 ---
 
@@ -100,8 +100,8 @@ export function slugify(text: string): string {
 ```
 
 ### Kabul Kriterleri
-- [ ] Türkçe karakter içeren başlıklar slug'da korunuyor
-- [ ] Wikilink hedefleri ve graph node id'leri tutarlı kalıyor
+- [x] Türkçe karakter içeren başlıklar slug'da korunuyor
+- [x] Wikilink hedefleri ve graph node id'leri tutarlı kalıyor
 
 ---
 
@@ -128,7 +128,7 @@ exportNoteAsMarkdown({
 ```
 
 ### Kabul Kriterleri
-- [ ] Büyük harf veya boşluk içeren başlıklarla kaydedilmiş notlar doğru metadata ile dışa aktarılıyor
+- [x] Büyük harf veya boşluk içeren başlıklarla kaydedilmiş notlar doğru metadata ile dışa aktarılıyor
 
 ---
 
@@ -148,7 +148,7 @@ exportNoteAsMarkdown({
 Ya gerçek bir eslint kurulumu (uygun bir TypeScript/React config ile) ekleyin ya da script'i şimdilik `package.json`'dan kaldırın.
 
 ### Kabul Kriterleri
-- [ ] `npm run lint` hatasız çalışıyor veya script kaldırılmış oluyor
+- [x] `npm run lint` hatasız çalışıyor veya script kaldırılmış oluyor
 
 ---
 
@@ -164,8 +164,8 @@ Ya gerçek bir eslint kurulumu (uygun bir TypeScript/React config ile) ekleyin y
 - Minimum uzunluğu en az 8 karaktere çıkarın, isteğe bağlı olarak bir parola gücü göstergesi (zxcvbn vb.) ekleyin.
 
 ### Kabul Kriterleri
-- [ ] Her iki formda da aynı minimum parola kuralı uygulanıyor
-- [ ] Kullanıcıya parola gücü hakkında görsel geri bildirim var
+- [x] Her iki formda da aynı minimum parola kuralı uygulanıyor
+- [x] Kullanıcıya parola gücü hakkında görsel geri bildirim var
 
 ---
 
@@ -180,8 +180,8 @@ Ya gerçek bir eslint kurulumu (uygun bir TypeScript/React config ile) ekleyin y
 `SettingsView`'a bir "Relay Yönetimi" bölümü ekleyin: kullanıcı relay URL'si ekleyip çıkarabilsin, tercihler localStorage'da saklansın ve `NostrService` başlatılırken bu liste kullanılsın.
 
 ### Kabul Kriterleri
-- [ ] Kullanıcı Ayarlar'dan relay ekleyip kaldırabiliyor
-- [ ] Tercihler sayfa yenilemesinde korunuyor
+- [x] Kullanıcı Ayarlar'dan relay ekleyip kaldırabiliyor
+- [x] Tercihler sayfa yenilemesinde korunuyor
 
 ---
 
@@ -196,7 +196,7 @@ Ya gerçek bir eslint kurulumu (uygun bir TypeScript/React config ile) ekleyin y
 - İlk yüklemede en yeni 200 event'i çek, ardından sayfa altına "Daha Fazla Yükle" butonu ekleyip `until` parametresiyle geçmişe doğru sayfalama yapın.
 
 ### Kabul Kriterleri
-- [ ] Kullanıcı 200 event limitinin ötesindeki notlara erişebiliyor
+- [x] Kullanıcı 200 event limitinin ötesindeki notlara erişebiliyor
 
 ---
 
@@ -217,7 +217,7 @@ README'deki "📁 Dizin Yapısı" bölümünde şu dosyalar hiç listelenmemiş,
 Dizin ağacını gerçek `src/` yapısıyla güncelleyin; ideal olarak bir script ile (örn. `tree` çıktısından) otomatik senkron tutulmasını sağlayın.
 
 ### Kabul Kriterleri
-- [ ] README'deki dizin ağacı `src/` altındaki tüm aktif dosyaları yansıtıyor
+- [x] README'deki dizin ağacı `src/` altındaki tüm aktif dosyaları yansıtıyor
 
 ---
 
@@ -241,6 +241,6 @@ Kullanıcı misafir modda not yazıp kaydediyor, sayfayı yeniliyor veya tarayı
 - İsteğe bağlı: misafir modda üretilen ephemeral key'i, kullanıcı isterse tek tıkla NIP-49 kasasına "yükseltebileceği" bir kısayol sunun (üretilen key'i sıfırdan yeni bir nsec yerine mevcut ephemeral key'i şifreleyerek kaydetme).
 
 ### Kabul Kriterleri
-- [ ] Misafir modda çalışırken kullanıcıya görünür bir uyarı gösteriliyor
-- [ ] README bu davranışı açıkça belgeliyor
-- [ ] (Opsiyonel) Ephemeral key'i kalıcı kasaya yükseltme akışı mevcut
+- [x] Misafir modda çalışırken kullanıcıya görünür bir uyarı gösteriliyor
+- [x] README bu davranışı açıkça belgeliyor
+- [x] (Opsiyonel) Ephemeral key'i kalıcı kasaya yükseltme akışı mevcut
