@@ -85,6 +85,32 @@ export class NostrService {
 
   private userSecretKey?: Uint8Array;
 
+  private autoReconnectTimer?: any;
+
+  public setupAutoReconnect(intervalMs: number = 10000): void {
+    if (this.autoReconnectTimer) {
+      clearInterval(this.autoReconnectTimer);
+    }
+
+    this.autoReconnectTimer = setInterval(() => {
+      if (!this.ndk || !this.ndk.pool) return;
+
+      const disconnectedRelays = Array.from(this.ndk.pool.relays.values()).filter(
+        (relay) => !relay.connected
+      );
+
+      if (disconnectedRelays.length > 0) {
+        disconnectedRelays.forEach((relay) => {
+          try {
+            relay.connect();
+          } catch (e) {
+            console.warn(`Relay (${relay.url}) yeniden bağlanma denemesi başarısız:`, e);
+          }
+        });
+      }
+    }, intervalMs);
+  }
+
   public async connect(): Promise<void> {
     if (this.isConnected) return;
 
@@ -116,6 +142,7 @@ export class NostrService {
       console.warn("Relay bağlantı zaman aşımı:", e);
     }
     this.isConnected = true;
+    this.setupAutoReconnect();
   }
 
   /**
