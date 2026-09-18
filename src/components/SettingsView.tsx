@@ -8,6 +8,7 @@ import {
   removeAllowedNpub,
   validateNpub,
 } from "../utils/recipientStore";
+import { KeyStoreService, validateAndEvaluatePassphrase } from "../utils/keyStore";
 
 interface RelayConfig {
   url: string;
@@ -35,6 +36,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   const [newNpub, setNewNpub] = useState("");
   const [npubStatus, setNpubStatus] = useState("");
 
+  // NIP-49 Key Vault State'leri
+  const [nsecInput, setNsecInput] = useState("");
+  const [passphraseInput, setPassphraseInput] = useState("");
+  const [keyVaultStatus, setKeyVaultStatus] = useState("");
+  const [hasKeyStored, setHasKeyStored] = useState<boolean>(KeyStoreService.hasStoredKey());
+
+  const passphraseStrength = validateAndEvaluatePassphrase(passphraseInput);
+
   // Mevcut NDK, Stored Relay Havuzunu ve Npub Alıcı Listesini Yükle
   useEffect(() => {
     const currentUrls = nostrService.getRelayUrls();
@@ -48,7 +57,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     }));
     setRelays(initialRelays);
     setAllowedNpubs(getAllowedNpubs());
+    setHasKeyStored(KeyStoreService.hasStoredKey());
   }, []);
+
+  // Kalıcı Anahtar Kaydetme
+  const handleSaveKeyVault = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passphraseStrength.isValid) {
+      setKeyVaultStatus(`❌ ${passphraseStrength.errorMessage || "Geçersiz parola."}`);
+      return;
+    }
+
+    try {
+      KeyStoreService.encryptAndSaveKey(nsecInput, passphraseInput);
+      await nostrService.loginWithPassphrase(passphraseInput);
+      setHasKeyStored(true);
+      setNsecInput("");
+      setPassphraseInput("");
+      setKeyVaultStatus("✅ Secret Key kalıcı kasaya (NIP-49) başarıyla kaydedildi ve oturum açıldı!");
+      if (onKeyUpdated) {
+        onKeyUpdated();
+      }
+    } catch (err: any) {
+      setKeyVaultStatus(`❌ Hata: ${err.message || "Anahtar kaydedilemedi."}`);
+    }
+  };
+
+  // Kalıcı Kasayı Temizleme
+  const handleClearKeyVault = () => {
+    if (window.confirm("Kayıtlı gizli anahtarınızı silmek istediğinize emin misiniz?")) {
+      KeyStoreService.clearStoredKey();
+      setHasKeyStored(false);
+      setKeyVaultStatus("Kasanız kilitlendi ve saklanan şifreli anahtar silindi.");
+      if (onKeyUpdated) {
+        onKeyUpdated();
+      }
+    }
+  };
 
   // Npub Ekleme İşleyicisi
   const handleAddNpub = (e: React.FormEvent) => {
@@ -105,7 +150,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
     let formattedUrl = newRelayUrl.trim();
     if (!formattedUrl.startsWith("ws://") && !formattedUrl.startsWith("wss://")) {
-      formattedUrl = `wss://${formattedUrl}`;
+      if (
+        formattedUrl.startsWith("localhost") ||
+        formattedUrl.startsWith("127.0.0.1") ||
+        formattedUrl.startsWith("0.0.0.0")
+      ) {
+        formattedUrl = `ws://${formattedUrl}`;
+      } else {
+        formattedUrl = `wss://${formattedUrl}`;
+      }
     }
 
     if (relays.some((r) => r.url === formattedUrl)) {
@@ -181,7 +234,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, background: "var(--bg-primary, #fff)", borderRadius: 8, border: "1px solid var(--input-border, #e2e8f0)", color: "var(--text-primary, #0f172a)" }}>
       <h2 style={{ fontSize: 18, marginBottom: 10 }}>⚙️ Sistem & Relay Ayarları</h2>
       <p style={{ fontSize: 13, color: "var(--text-muted, #64748b)", marginBottom: 20 }}>
-        Relay tercihlerinizi NIP-65 standardına göre yapılandırın, gizli not erişim alıcılarını tanımlayın ve yerel klasör otomatik senkronizasyonunu yönetin.
+        Kendi Nostr gizli anahtarınızı tanımlayın, relay tercihlerinizi NIP-65 standardına göre yapılandırın, gizli not erişim alıcılarını tanımlayın ve yerel klasör otomatik senkronizasyonunu yönetin.
       </p>
 
       {status && (
@@ -189,6 +242,107 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           {status}
         </div>
       )}
+
+      {/* Kalıcı Kasa (NIP-49 Private Key Saklama) Bölümü */}
+      <div style={{ marginBottom: 24, padding: 14, background: "var(--bg-secondary, #f8fafc)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 6 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>🔑 Kalıcı Kasa & Nostr Anahtar Yönetimi (NIP-49)</div>
+        <p style={{ fontSize: 12, color: "var(--text-muted, #64748b)", marginBottom: 12 }}>
+          Geçici (ephemeral) anahtar yerine kendi Nostr gizli anahtarınızı (<code>nsec1...</code> veya 64 karakterli hex) tanımlayıp belirleyeceğiniz bir kasa parolası ile şifreli (NIP-49 / ncryptsec) saklayabilirsiniz.
+        </p>
+
+        {/* Npub / nsec alma rehber bağlantıları */}
+        <div style={{ padding: 10, background: "var(--bg-primary, #fff)", borderRadius: 4, border: "1px solid var(--input-border, #e2e8f0)", marginBottom: 14, fontSize: 12 }}>
+          <span style={{ fontWeight: 600 }}>💡 Nostr Hesabınız Yok mu?</span>
+          <div style={{ marginTop: 4, color: "var(--text-muted, #64748b)", lineHeight: 1.5 }}>
+            Aşağıdaki web tabanlı Nostr istemcilerinden birini ziyaret ederek hemen ücretsiz bir <code>npub</code> / <code>nsec</code> anahtar çifti oluşturabilirsiniz:
+          </div>
+          <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+            <a href="https://nostrudel.ninja" target="_blank" rel="noreferrer" style={{ color: "var(--accent-blue, #2563eb)", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Nostrudel
+            </a>
+            <a href="https://iris.to" target="_blank" rel="noreferrer" style={{ color: "var(--accent-blue, #2563eb)", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Iris (iris.to)
+            </a>
+            <a href="https://snort.social" target="_blank" rel="noreferrer" style={{ color: "var(--accent-blue, #2563eb)", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Snort (snort.social)
+            </a>
+          </div>
+        </div>
+
+        {keyVaultStatus && (
+          <div style={{ padding: "8px 10px", background: "var(--bg-primary, #fff)", fontSize: 12, borderRadius: 4, marginBottom: 10, border: "1px solid var(--input-border, #cbd5e1)" }}>
+            {keyVaultStatus}
+          </div>
+        )}
+
+        {hasKeyStored ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 10, background: "var(--bg-primary, #fff)", borderRadius: 4, border: "1px solid var(--input-border, #e2e8f0)" }}>
+            <div>
+              <span style={{ color: "#16a34a", fontWeight: 600, fontSize: 13 }}>✅ Kalıcı Kasa Aktif (NIP-49)</span>
+              <p style={{ fontSize: 11, color: "var(--text-muted, #64748b)", margin: "2px 0 0 0" }}>
+                Private key'iniz NIP-49 ile şifrelenmiş olarak tarayıcınızda güvenle saklanmaktadır.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearKeyVault}
+              style={{ padding: "6px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+            >
+              🔒 Kasayı Temizle
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSaveKeyVault} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Nostr Private Key (nsec1... veya Hex):
+              </label>
+              <input
+                type="password"
+                placeholder="nsec1..."
+                value={nsecInput}
+                onChange={(e) => setNsecInput(e.target.value)}
+                style={{ width: "100%", padding: 8, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary, #0f172a)", fontFamily: "monospace", fontSize: 13 }}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Kasa Şifreleme Parolası (En az 8 karakter):
+              </label>
+              <input
+                type="password"
+                placeholder="Parola belirleyin..."
+                value={passphraseInput}
+                onChange={(e) => setPassphraseInput(e.target.value)}
+                style={{ width: "100%", padding: 8, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary, #0f172a)", fontSize: 13 }}
+                required
+              />
+              {passphraseInput.length > 0 && (
+                <div style={{ marginTop: 4, fontSize: 11 }}>
+                  <span>Parola Gücü: </span>
+                  <span style={{ color: passphraseStrength.color, fontWeight: "bold" }}>
+                    {passphraseStrength.label}
+                  </span>
+                  {!passphraseStrength.isValid && passphraseStrength.errorMessage && (
+                    <span style={{ color: "#ef4444", marginLeft: 8 }}>
+                      ({passphraseStrength.errorMessage})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              style={{ padding: "8px 16px", background: "var(--accent-blue, #2563eb)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13, alignSelf: "flex-start" }}
+            >
+              🔐 Anahtarı Şifrele & Kalıcı Kasaya Kaydet
+            </button>
+          </form>
+        )}
+      </div>
 
       {/* Gizli/Özel Not Alıcıları (Npub Adresleri) Bölümü */}
       <div style={{ marginBottom: 24, padding: 14, background: "var(--bg-secondary, #f8fafc)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 6 }}>
