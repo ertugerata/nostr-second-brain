@@ -9,7 +9,7 @@ export interface NpubValidationResult {
 }
 
 /**
- * npub adresini doğrular ve hex pubkey karşılığını döner.
+  npub adresini doğrular ve hex pubkey karşılığını döner.
  */
 export function validateNpub(npub: string): NpubValidationResult {
   const trimmed = npub.trim();
@@ -54,7 +54,7 @@ export function getAllowedNpubs(): string[] {
 }
 
 /**
- * Yeni bir npub adresi ekler.
+ * Yeni bir npub adresi ekler (Giriş doğrulaması, mükerrer kayıt engeli ve localStorage kaydı içerir).
  */
 export function addAllowedNpub(npub: string): { success: boolean; message: string; hexPubkey?: string } {
   const validation = validateNpub(npub);
@@ -65,7 +65,14 @@ export function addAllowedNpub(npub: string): { success: boolean; message: strin
   const trimmed = npub.trim();
   const currentList = getAllowedNpubs();
 
-  if (currentList.includes(trimmed)) {
+  // Mükerrer kayıt kontrolü (hem npub metni hem de çözümlenen hex pubkey üzerinden)
+  const isDuplicate = currentList.some((existingNpub) => {
+    if (existingNpub === trimmed) return true;
+    const existingVal = validateNpub(existingNpub);
+    return existingVal.valid && existingVal.hexPubkey === validation.hexPubkey;
+  });
+
+  if (isDuplicate) {
     return { success: false, message: "Bu npub adresi zaten listede ekli." };
   }
 
@@ -82,7 +89,7 @@ export function addAllowedNpub(npub: string): { success: boolean; message: strin
 }
 
 /**
- * Bir npub adresini listeden siler.
+ * Bir npub adresini listeden siler ve localStorage'ı günceller.
  */
 export function removeAllowedNpub(npubToRemove: string): boolean {
   const trimmed = npubToRemove.trim();
