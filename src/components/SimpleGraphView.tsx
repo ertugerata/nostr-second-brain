@@ -4,10 +4,13 @@ import ForceGraph3D from "react-force-graph-3d";
 import * as THREE from "three";
 import { GraphData, GraphNode, GraphLink } from "../utils/graphBuilder";
 
+export type GraphFilterScope = "mine_and_neighbors" | "mine_only" | "all";
+
 interface SimpleGraphViewProps {
   graphData: GraphData;
   onSelectNode: (id: string) => void;
   theme?: "light" | "dark";
+  currentUserPubkey?: string;
 }
 
 export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
@@ -16,6 +19,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
   theme = "light",
 }) => {
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  const [filterScope, setFilterScope] = useState<GraphFilterScope>("mine_and_neighbors");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -56,11 +60,12 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
       text: isDark ? "#f8fafc" : "#0f172a",
       textMuted: isDark ? "#94a3b8" : "#64748b",
       border: isDark ? "#334155" : "#e2e8f0",
-      nodeNormal: isDark ? "#38bdf8" : "#2563eb",
+      nodeMine: isDark ? "#38bdf8" : "#2563eb",
+      nodeNeighbor: isDark ? "#2dd4bf" : "#0d9488",
       nodeUncreated: isDark ? "#f59e0b" : "#d97706",
+      nodeOther: isDark ? "#64748b" : "#94a3b8",
       nodeHover: isDark ? "#f43f5e" : "#e11d48",
       nodeSelected: isDark ? "#a855f7" : "#7c3aed",
-      nodeDimmed: isDark ? "rgba(51, 65, 85, 0.4)" : "rgba(203, 213, 225, 0.5)",
       linkNormal: isDark ? "#475569" : "#cbd5e1",
       linkHighlight: isDark ? "#38bdf8" : "#2563eb",
       linkDimmed: isDark ? "rgba(30, 41, 59, 0.2)" : "rgba(241, 245, 249, 0.3)",
@@ -68,16 +73,40 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
     };
   }, [isDark]);
 
-  // Clone & prepare data for force graph to prevent direct mutation issues
+  // Filter & Prepare data for force graph
   const preparedData = useMemo(() => {
     const rawLinks = graphData.links || graphData.edges || [];
-    const nodes: GraphNode[] = (graphData.nodes || []).map((n) => ({ ...n }));
-    const links = rawLinks.map((l) => ({
-      source: typeof l.source === "object" ? (l.source as any).id : l.source,
-      target: typeof l.target === "object" ? (l.target as any).id : l.target,
-    }));
-    return { nodes, links };
-  }, [graphData]);
+    const allNodes: GraphNode[] = (graphData.nodes || []).map((n) => ({ ...n }));
+
+    // Check if there are any signed mine nodes
+    const hasMineNodes = allNodes.some((n) => n.isMine);
+
+    // Filter nodes based on filterScope
+    const filteredNodes = allNodes.filter((node) => {
+      if (filterScope === "mine_only") {
+        return node.isMine || (!hasMineNodes && !node.pubkey);
+      }
+      if (filterScope === "mine_and_neighbors") {
+        return node.isMine || node.isNeighborOfMine || !hasMineNodes;
+      }
+      return true; // "all"
+    });
+
+    const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+
+    const links = rawLinks
+      .map((l) => ({
+        source: typeof l.source === "object" ? (l.source as any).id : l.source,
+        target: typeof l.target === "object" ? (l.target as any).id : l.target,
+      }))
+      .filter((l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target));
+
+    return {
+      nodes: filteredNodes,
+      links,
+      totalCount: allNodes.length,
+    };
+  }, [graphData, filterScope]);
 
   // Set of connected nodes & links relative to hoverNode or selectedNode
   const { highlightNodes, highlightLinks } = useMemo(() => {
@@ -115,6 +144,17 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
     });
     return matches;
   }, [searchQuery, preparedData]);
+
+  // Get color for a given node
+  const getNodeColor = useCallback(
+    (node: GraphNode) => {
+      if (node.uncreated) return colors.nodeUncreated;
+      if (node.isMine) return colors.nodeMine;
+      if (node.isNeighborOfMine) return colors.nodeNeighbor;
+      return colors.nodeOther;
+    },
+    [colors]
+  );
 
   // Zoom controls
   const handleZoomIn = () => {
@@ -197,6 +237,8 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
 
+      const baseColor = getNodeColor(node);
+
       if (node.uncreated) {
         ctx.fillStyle = colors.nodeUncreated;
         ctx.strokeStyle = isDark ? "#ffffff" : "#000000";
@@ -206,10 +248,8 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
         ctx.fillStyle = colors.nodeSelected;
       } else if (isHovered) {
         ctx.fillStyle = colors.nodeHover;
-      } else if (isHighlighted) {
-        ctx.fillStyle = colors.nodeNormal;
       } else {
-        ctx.fillStyle = colors.nodeNormal;
+        ctx.fillStyle = baseColor;
       }
 
       ctx.fill();
@@ -252,7 +292,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
 
       ctx.restore();
     },
-    [hoverNode, selectedNodeId, highlightNodes, matchingNodeIds, colors, isDark]
+    [hoverNode, selectedNodeId, highlightNodes, matchingNodeIds, colors, isDark, getNodeColor]
   );
 
   // 3D Custom Node Object Generator
@@ -266,8 +306,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
 
       const radius = Math.max(2, Math.min((node.val || 3) * 0.6, 8));
 
-      let colorHex = colors.nodeNormal;
-      if (node.uncreated) colorHex = colors.nodeUncreated;
+      let colorHex = getNodeColor(node);
       if (isSelected) colorHex = colors.nodeSelected;
       else if (isHovered) colorHex = colors.nodeHover;
 
@@ -317,7 +356,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
 
       return group;
     },
-    [hoverNode, selectedNodeId, highlightNodes, matchingNodeIds, colors, isDark]
+    [hoverNode, selectedNodeId, highlightNodes, matchingNodeIds, colors, isDark, getNodeColor]
   );
 
   // Link styling getters
@@ -353,6 +392,8 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
       </div>
     );
   }
+
+  const activeNodeInfo = hoverNode || (selectedNodeId ? preparedData.nodes.find((n) => n.id === selectedNodeId) : null);
 
   return (
     <div
@@ -397,12 +438,34 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
               fontWeight: 600,
             }}
           >
-            {preparedData.nodes.length} Düğüm • {preparedData.links.length} Bağlantı
+            {preparedData.nodes.length} Düğüm • {preparedData.links.length} Bağlantı (Toplam: {preparedData.totalCount})
           </span>
         </div>
 
-        {/* Search & Mode Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Filter, Search & Mode Controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Graph Filter Dropdown */}
+          <select
+            value={filterScope}
+            onChange={(e) => setFilterScope(e.target.value as GraphFilterScope)}
+            title="Ağ Filtreleme"
+            style={{
+              padding: "5px 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              borderRadius: 6,
+              border: `1px solid ${colors.border}`,
+              backgroundColor: colors.bg,
+              color: colors.text,
+              outline: "none",
+              cursor: "pointer",
+            }}
+          >
+            <option value="mine_and_neighbors">✍️ Benimki & Bağlantıları</option>
+            <option value="mine_only">👤 Yalnızca Benim Notlarım</option>
+            <option value="all">🌐 Tüm Notlar (Relay dahil)</option>
+          </select>
+
           <input
             type="text"
             placeholder="Ağda not ara..."
@@ -416,7 +479,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
               backgroundColor: colors.bg,
               color: colors.text,
               outline: "none",
-              width: 140,
+              width: 130,
             }}
           />
 
@@ -436,7 +499,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
                 fontSize: 12,
                 fontWeight: 600,
                 border: "none",
-                backgroundColor: viewMode === "2d" ? colors.nodeNormal : "transparent",
+                backgroundColor: viewMode === "2d" ? colors.nodeMine : "transparent",
                 color: viewMode === "2d" ? "#ffffff" : colors.textMuted,
                 cursor: "pointer",
               }}
@@ -450,7 +513,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
                 fontSize: 12,
                 fontWeight: 600,
                 border: "none",
-                backgroundColor: viewMode === "3d" ? colors.nodeNormal : "transparent",
+                backgroundColor: viewMode === "3d" ? colors.nodeMine : "transparent",
                 color: viewMode === "3d" ? "#ffffff" : colors.textMuted,
                 cursor: "pointer",
               }}
@@ -557,7 +620,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
         )}
 
         {/* Floating Tooltip / Information Overlay */}
-        {(hoverNode || selectedNodeId) && (
+        {activeNodeInfo && (
           <div
             style={{
               position: "absolute",
@@ -567,24 +630,40 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
               border: `1px solid ${colors.border}`,
               backdropFilter: "blur(4px)",
               borderRadius: 8,
-              padding: "8px 12px",
+              padding: "10px 14px",
               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
               pointerEvents: "none",
               fontSize: 12,
               color: colors.text,
-              maxWidth: 300,
+              maxWidth: 320,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
-              {(hoverNode || preparedData.nodes.find((n) => n.id === selectedNodeId))?.title}
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+              {activeNodeInfo.title}
             </div>
-            {hoverNode?.uncreated && (
-              <span style={{ color: colors.nodeUncreated, fontWeight: 600 }}>
-                ⚠️ Henüz oluşturulmamış not (Wikilink referansı)
-              </span>
-            )}
-            <div style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>
-              💡 Notu editörde açmak için üzerine tıklayın. Sürükleyerek konumlandırabilirsiniz.
+
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+              {activeNodeInfo.isMine ? (
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, backgroundColor: colors.nodeMine, color: "#fff", fontWeight: 600 }}>
+                  ✍️ Benim Notum
+                </span>
+              ) : activeNodeInfo.isNeighborOfMine ? (
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, backgroundColor: colors.nodeNeighbor, color: "#fff", fontWeight: 600 }}>
+                  🔗 Bağlantılı Not
+                </span>
+              ) : activeNodeInfo.uncreated ? (
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, backgroundColor: colors.nodeUncreated, color: "#fff", fontWeight: 600 }}>
+                  ⚠️ Henüz Oluşturulmadı
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, backgroundColor: colors.nodeOther, color: "#fff", fontWeight: 600 }}>
+                  🌐 Relay Notu
+                </span>
+              )}
+            </div>
+
+            <div style={{ color: colors.textMuted, fontSize: 11 }}>
+              💡 Notu editörde açmak için tıklayın. Sürükleyerek serbestçe konumlandırabilirsiniz.
             </div>
           </div>
         )}

@@ -241,8 +241,8 @@ export function App() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    setGraphData(buildNoteGraph(notes));
-  }, [notes]);
+    setGraphData(buildNoteGraph(notes, currentUserPubkey));
+  }, [notes, currentUserPubkey]);
 
   if (!isAuthenticated && KeyStoreService.hasStoredKey()) {
     return (
@@ -880,7 +880,12 @@ export function App() {
                 </div>
               }
             >
-              <SimpleGraphView graphData={graphData} onSelectNode={handleSelectNote} theme={theme} />
+              <SimpleGraphView
+                graphData={graphData}
+                onSelectNode={handleSelectNote}
+                theme={theme}
+                currentUserPubkey={currentUserPubkey}
+              />
             </React.Suspense>
           </div>
         )}
