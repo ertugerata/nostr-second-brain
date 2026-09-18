@@ -8,10 +8,34 @@
 
 - 🔓 **Sıfır Lock-in (Tam Veri Mülkiyeti):** Notlarınız merkezi bir sunucuda kilitli kalmaz. Verileriniz Nostr event'leri olarak sizin tarafınızdan imzalanır ve seçtiğiniz relay'lerde saklanır.
 - ⚡ **Offline-First Mimari:** IndexedDB katmanı sayesinde sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten (`@nostr-dev-kit/ndk-cache-dexie`) ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir.
+- 📁 **Yerel Klasör Otomatik Senkronizasyonu (Local File Sync):** Web File System Access API (`showDirectoryPicker`) ile bilgisayarınızdaki bir klasörü seçebilir, yazdığınız veya güncellediğiniz notların yerel diskteki `.md` dosyalarına YAML Frontmatter ile anında otomatik kaydedilmesini sağlayabilirsiniz.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
 - 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View (`react-force-graph`):** Notlar arasındaki bağlantılar otomatik ayrıştırılarak sürükleyip bırakılabilir, yakınlaştırılabilir, 2D ve 3D modları arasında geçiş yapılabilir interaktif ağ haritası oluşturulur.
+- 🎯 **Akıllı Ağ Filtreleme (Kendi İmzaladığınız Notlar Öncelikli):** Relay'lerde çok sayıda nokta ve kalabalık olduğunda varsayılan olarak yalnızca sizin imzaladığınız notlar ve bunlarla ilişkili doğrudan bağlantılar gösterilir. İstenildiğinde tek tıkla tüm ağ görüntülenebilir.
 - 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya misafir modunda geçici (ephemeral) key kullanımı desteklenir.
 - 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
+
+---
+
+## 📁 Yerel Klasör Senkronizasyonu (Local Directory File Sync)
+
+Nostr Second Brain, notlarınızı sadece Nostr relay'lerinde ve IndexedDB önbelleğinde tutmakla kalmaz; doğrudan bilgisayarınızdaki yerel bir klasörle de çift yönlü / anlık olarak senkronize edebilir.
+
+### Nasıl Çalışır?
+1. **Klasör Seçimi:** **Ayarlar (⚙️)** sekmesine giderek **"📁 Senkronizasyon Klasörü Seç"** butonuna tıklayın ve bilgisayarınızda (örneğin Obsidian kasanızın yer aldığı veya notlarınızı saklamak istediğiniz) bir klasör seçin.
+2. **Otomatik Yazma (`.md` + YAML Frontmatter):** Editörde her **"Kaydet & İmzala"** butonuna bastığınızda `LocalFileSyncService` modülü ilgili notu seçilen klasörde `not-slug.md` dosyası olarak oluşturur veya günceller.
+3. **YAML Frontmatter Yapısı:** Yerel diske kaydedilen `.md` dosyaları diğer Markdown / Obsidian araçlarıyla %100 uyumludur:
+   ```markdown
+   ---
+   title: "nostr-rehberi"
+   pubkey: "npub1..."
+   created_at: 1710000000
+   ---
+
+   # Nostr Rehberi
+   Not içeriğiniz bu alanda yer alır. [[Diğer Not]] referansı verebilirsiniz.
+   ```
+4. **Dosya Yükleme & Aktarma (Import/Export):** Sol menüdeki **"📂 MD Yükle"** butonunu kullanarak bilgisayarınızdaki mevcut `.md` dosyalarını uygulamaya aktarabilir, düzenleyip Nostr üzerinde imzalayabilirsiniz.
 
 ---
 
@@ -33,6 +57,10 @@ Not yazarken veya düzenlerken metin içerisinde iki köşeli parantez `[[...]]`
 
 ### 2. Grafik Görünümünde (Graph View) Nasıl Görünür?
 - **Otomatik Düğüm (Node) ve Bağlantı (Edge) Oluşturma:** Notu kaydettiğinizde sistem içerikteki tüm `[[wikilink]]` bağlantılarını tarar ve ağ haritasında kaynak not ile hedef not arasına yönlü/yönsüz bir çizgi ekler.
+- **Akıllı Filtreleme Seçenekleri:**
+  - **`✍️ Benimki & Bağlantıları` (Varsayılan):** Yalnızca kendi imzaladığınız notlar ve doğrudan bağlı referanslar gösterilir (kalabalık ağ karmaşasını önler).
+  - **`👤 Yalnızca Benim Notlarım`:** Sadece sizin imzaladığınız notlar listelenir.
+  - **`🌐 Tüm Notlar (Relay dahil)`:** Relay'lerden çekilen tüm kullanıcı notları ve bağlantıları haritada görüntülenir.
 - **Henüz Oluşturulmamış Reference Notları (Ghost Nodes):** Eğer referans verdiğiniz not henüz oluşturulmadıysa, grafik haritasında kesikli çizgili ve uyarı simgeli turuncu bir "Oluşturulmadı" düğümü olarak görünür. Üzerine tıklayarak doğrudan yeni not alanına geçebilirsiniz.
 - **İnteraktif 2D & 3D Ağ Haritası Kontrolleri:**
   - **2D / 3D Mod Geçişi:** Sağ üstteki `2D` / `3D` butonları ile grafik modunu anında değiştirebilirsiniz.
@@ -75,6 +103,7 @@ nostr-second-brain/
 │   └── utils/
 │       ├── crypto.ts        # NIP-44 ve NIP-59 Gift Wrap şifreleme fonksiyonları
 │       ├── exportUtils.ts   # Markdown (.md) ve JSON dışa aktarma fonksiyonları
+│       ├── fileSync.ts      # Browser File System Access API ile yerel .md klasör senkronizasyonu
 │       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Links) oluşturucu
 │       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve parola doğrulama yönetimi
 │       ├── sampleNote.ts    # Varsayılan başlangıç notu içeriği
