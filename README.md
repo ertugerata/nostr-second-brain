@@ -10,6 +10,7 @@
 - ⚡ **Offline-First Mimari:** IndexedDB katmanı sayesinde sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten (`@nostr-dev-kit/ndk-cache-dexie`) ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
 - 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View (`react-force-graph`):** Notlar arasındaki bağlantılar otomatik ayrıştırılarak sürükleyip bırakılabilir, yakınlaştırılabilir, 2D ve 3D modları arasında geçiş yapılabilir interaktif ağ haritası oluşturulur.
+- 🎯 **Akıllı Ağ Filtreleme (Kendi İmzaladığınız Notlar Öncelikli):** Relay'lerde çok sayıda nokta ve kalabalık olduğunda varsayılan olarak yalnızca sizin imzaladığınız notlar ve bunlarla ilişkili doğrudan bağlantılar gösterilir. İstenildiğinde tek tıkla tüm ağ görüntülenebilir.
 - 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya misafir modunda geçici (ephemeral) key kullanımı desteklenir.
 - 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
 
@@ -33,6 +34,10 @@ Not yazarken veya düzenlerken metin içerisinde iki köşeli parantez `[[...]]`
 
 ### 2. Grafik Görünümünde (Graph View) Nasıl Görünür?
 - **Otomatik Düğüm (Node) ve Bağlantı (Edge) Oluşturma:** Notu kaydettiğinizde sistem içerikteki tüm `[[wikilink]]` bağlantılarını tarar ve ağ haritasında kaynak not ile hedef not arasına yönlü/yönsüz bir çizgi ekler.
+- **Akıllı Filtreleme Seçenekleri:**
+  - **`✍️ Benimki & Bağlantıları` (Varsayılan):** Yalnızca kendi imzaladığınız notlar ve doğrudan bağlı referanslar gösterilir (kalabalık ağ karmaşasını önler).
+  - **`👤 Yalnızca Benim Notlarım`:** Sadece sizin imzaladığınız notlar listelenir.
+  - **`🌐 Tüm Notlar (Relay dahil)`:** Relay'lerden çekilen tüm kullanıcı notları ve bağlantıları haritada görüntülenir.
 - **Henüz Oluşturulmamış Reference Notları (Ghost Nodes):** Eğer referans verdiğiniz not henüz oluşturulmadıysa, grafik haritasında kesikli çizgili ve uyarı simgeli turuncu bir "Oluşturulmadı" düğümü olarak görünür. Üzerine tıklayarak doğrudan yeni not alanına geçebilirsiniz.
 - **İnteraktif 2D & 3D Ağ Haritası Kontrolleri:**
   - **2D / 3D Mod Geçişi:** Sağ üstteki `2D` / `3D` butonları ile grafik modunu anında değiştirebilirsiniz.
@@ -126,7 +131,7 @@ Uygulama 3 farklı kimlik doğrulama yöntemini destekler:
                  Seal (k:13)
                      │
                      ▼ (Ephemeral Key + Fake Timestamp + NIP-44)
-                 Gift Wrap (k:1059) ──> [Relay] (Dışarıdan sadece rastgele key ve k:1059 görünür)
+                 Gift Wrap (k:1059) ──> [Relay] (Dışarıdan sadece rastgele key me k:1059 görünür)
 ```
 
 ---
