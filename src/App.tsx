@@ -351,14 +351,27 @@ export function App() {
       });
 
       // Otomatik yerel disk senkronizasyonu
-      await LocalFileSyncService.saveNoteToLocalDisk(noteSlug, savedItem.content, savedItem.pubkey, savedItem.createdAt);
+      const localSyncResult = await LocalFileSyncService.saveNoteToLocalDisk(
+        noteSlug,
+        savedItem.content,
+        savedItem.pubkey,
+        savedItem.createdAt,
+        isPrivate
+      );
 
       if (isPrivate) {
         const recipientCount = getAllowedRecipientPubkeys().length;
+        let syncMsg = "";
+        if (localSyncResult.skippedPrivate) {
+          syncMsg = " (Yerel disk senkronizasyonu gizli notlar için kapalı)";
+        } else if (localSyncResult.saved) {
+          syncMsg = " (Yerel diske şifresiz düz metin kaydedildi)";
+        }
+
         if (recipientCount > 0) {
-          setStatusText(`Gizli not (NIP-59 Gift Wrap) siz ve ${recipientCount} alıcı için başarıyla şifrelendi ve kaydedildi!`);
+          setStatusText(`Gizli not (NIP-59 Gift Wrap) siz ve ${recipientCount} alıcı için başarıyla şifrelendi ve kaydedildi!${syncMsg}`);
         } else {
-          setStatusText("Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!");
+          setStatusText(`Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!${syncMsg}`);
         }
       } else {
         setStatusText("Not başarıyla kaydedildi!");
@@ -387,13 +400,17 @@ export function App() {
     const noteToDelete = notes.get(targetSlug);
     if (!noteToDelete) return;
 
-    if (!window.confirm(`"${noteToDelete.slug}" notunu ve tüm geçmişini silmek istediğinize emin misiniz? (NIP-09 deletion event yayınlanacak)`)) {
-      return;
-    }
-
-    setStatusText("Silme talebi yayınlanıyor (NIP-09)...");
-    try {
-      await nostrService.deleteEvent(noteToDelete.id, noteToDelete.slug, "Not kullanıcı tarafından silindi");
+    if (noteToDelete.isPrivate) {
+      if (
+        !window.confirm(
+          `"${noteToDelete.slug}" gizli notunu silmek istediğinize emin misiniz?\n\n` +
+            `⚠️ BİLGİLENDİRME: Gizli notlar NIP-59 (Gift Wrap) tasarımı gereği ephemeral (geçici) anahtarla imzalanır. ` +
+            `Bu nedenle relay'lerdeki şifreli kopyalar k.5 (NIP-09) ile silinemez. ` +
+            `Bu işlem notu yalnızca yerel görünümünüzden ve önbelleğinizden kaldıracaktır.`
+        )
+      ) {
+        return;
+      }
 
       setNotes((prev) => {
         const updated = new Map(prev);
@@ -410,23 +427,59 @@ export function App() {
       if (slug === targetSlug) {
         setSlug("yeni-not");
         setContent("");
+        setIsPrivate(false);
       }
 
-      setStatusText("Not başarıyla silindi ve NIP-09 duyurusu yayınlandı!");
-    } catch (error) {
-      console.error("Silme hatası:", error);
-      setStatusText("Silme işlemi başarısız oldu!");
+      setStatusText("Gizli not yerel görünümden kaldırıldı (NIP-59 tasarımı gereği relay'lerdeki kopyalar silinemez).");
+    } else {
+      if (
+        !window.confirm(
+          `"${noteToDelete.slug}" notunu ve tüm geçmişini silmek istediğinize emin misiniz? (NIP-09 deletion event yayınlanacak)`
+        )
+      ) {
+        return;
+      }
+
+      setStatusText("Silme talebi yayınlanıyor (NIP-09)...");
+      try {
+        await nostrService.deleteEvent(noteToDelete.id, noteToDelete.slug, "Not kullanıcı tarafından silindi");
+
+        setNotes((prev) => {
+          const updated = new Map(prev);
+          updated.delete(targetSlug);
+          return updated;
+        });
+
+        setNoteHistory((prev) => {
+          const updated = new Map(prev);
+          updated.delete(targetSlug);
+          return updated;
+        });
+
+        if (slug === targetSlug) {
+          setSlug("yeni-not");
+          setContent("");
+          setIsPrivate(false);
+        }
+
+        setStatusText("Not başarıyla silindi ve NIP-09 duyurusu yayınlandı!");
+      } catch (error) {
+        console.error("Silme hatası:", error);
+        setStatusText("Silme işlemi başarısız oldu!");
+      }
     }
   };
 
   const handleDeleteVersionItem = async (ver: NoteItem) => {
-    if (!window.confirm(`Bu özel versiyonu (${new Date(ver.createdAt * 1000).toLocaleString("tr-TR")}) silmek istediğinize emin misiniz?`)) {
-      return;
-    }
-
-    setStatusText("Versiyon silme talebi yayınlanıyor (NIP-09)...");
-    try {
-      await nostrService.deleteEvent(ver.id, ver.slug, "Versiyon silindi");
+    if (ver.isPrivate) {
+      if (
+        !window.confirm(
+          `Bu gizli versiyonu (${new Date(ver.createdAt * 1000).toLocaleString("tr-TR")}) yerel görünümden kaldırmak istediğinize emin misiniz?\n\n` +
+            `⚠️ BİLGİLENDİRME: NIP-59 (Gift Wrap) gizli notlar relay'lerden NIP-09 ile silinemez; işlem yalnızca yerel görünümü günceller.`
+        )
+      ) {
+        return;
+      }
 
       const noteSlug = ver.slug;
       setNoteHistory((prevHistory) => {
@@ -454,6 +507,7 @@ export function App() {
             if (slug === noteSlug) {
               setSlug("yeni-not");
               setContent("");
+              setIsPrivate(false);
             }
           }
           return updated;
@@ -461,10 +515,55 @@ export function App() {
         return prevNotes;
       });
 
-      setStatusText("Versiyon silindi ve NIP-09 duyurusu yayınlandı!");
-    } catch (error) {
-      console.error("Versiyon silme hatası:", error);
-      setStatusText("Versiyon silme başarısız oldu!");
+      setStatusText("Gizli versiyon yerel görünümden kaldırıldı.");
+    } else {
+      if (!window.confirm(`Bu özel versiyonu (${new Date(ver.createdAt * 1000).toLocaleString("tr-TR")}) silmek istediğinize emin misiniz?`)) {
+        return;
+      }
+
+      setStatusText("Versiyon silme talebi yayınlanıyor (NIP-09)...");
+      try {
+        await nostrService.deleteEvent(ver.id, ver.slug, "Versiyon silindi");
+
+        const noteSlug = ver.slug;
+        setNoteHistory((prevHistory) => {
+          const updated = new Map(prevHistory);
+          const existingList = updated.get(noteSlug) || [];
+          const filtered = existingList.filter((item) => item.id !== ver.id);
+          if (filtered.length > 0) {
+            updated.set(noteSlug, filtered);
+          } else {
+            updated.delete(noteSlug);
+          }
+          return updated;
+        });
+
+        setNotes((prevNotes) => {
+          const currentNote = prevNotes.get(noteSlug);
+          if (currentNote && currentNote.id === ver.id) {
+            const updated = new Map(prevNotes);
+            const historyList = (noteHistory.get(noteSlug) || []).filter((item) => item.id !== ver.id);
+            if (historyList.length > 0) {
+              const sorted = [...historyList].sort((a, b) => b.createdAt - a.createdAt);
+              updated.set(noteSlug, sorted[0]);
+            } else {
+              updated.delete(noteSlug);
+              if (slug === noteSlug) {
+                setSlug("yeni-not");
+                setContent("");
+                setIsPrivate(false);
+              }
+            }
+            return updated;
+          }
+          return prevNotes;
+        });
+
+        setStatusText("Versiyon silindi ve NIP-09 duyurusu yayınlandı!");
+      } catch (error) {
+        console.error("Versiyon silme hatası:", error);
+        setStatusText("Versiyon silme başarısız oldu!");
+      }
     }
   };
 
@@ -844,14 +943,21 @@ export function App() {
               </div>
 
               <div className="form-actions">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={isPrivate}
-                    onChange={(e) => setIsPrivate(e.target.checked)}
-                  />
-                  🔒 NIP-44/59 Gizli Not (Gift Wrap)
-                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={isPrivate}
+                      onChange={(e) => setIsPrivate(e.target.checked)}
+                    />
+                    🔒 NIP-44/59 Gizli Not (Gift Wrap)
+                  </label>
+                  {isPrivate && (
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "22px", maxWidth: "450px", lineHeight: "1.3" }}>
+                      ℹ️ Gizli notlar NIP-59 Gift Wrap (ephemeral key) ile şifrelenir. Ephemeral imzalar nedeniyle relay'lerdeki kopyalar NIP-09 ile silinemez; silme işlemi yalnızca yerel görünümünüzü temizler.
+                    </span>
+                  )}
+                </div>
 
                 <div style={{ display: "flex", gap: "8px" }}>
                   {notes.has(slugify(slug)) && notes.get(slugify(slug))?.pubkey === currentUserPubkey && (

@@ -26,6 +26,7 @@ Nostr Second Brain, NIP-59 Gift Wrap mimarisi ile gizli/özel notlarınızı sad
 2. **Npub Doğrulama ve Depolama:** Girilen npub adresi format ve Bech32 doğrulamalarından geçirilir. Doğrulanan alıcılar listede görünür ve istenildiğinde ❌ butonu ile silinebilir.
 3. **Çoklu Alıcı Şifreleme (Multi-Recipient Gift Wrap):** Düzenleyicide **"🔒 NIP-44/59 Gizli Not (Gift Wrap)"** seçeneği işaretlenip not kaydedildiğinde, uygulama hem sizin için hem de Ayarlar'da ekli tüm alıcı npub adresleri için ayrı ayrı şifrelenmiş NIP-59 Gift Wrap zarfları (kind: 1059) oluşturup relay'lere yayınlar.
 4. **Güvenli Erişim:** İlgili `npub` adresinin sahibi kendi Nostr anahtarlarıyla uygulamaya giriş yaptığında şifreli zarfı çözer ve gizli not içeriğini okuyabilir. Üçüncü şahıslar veya relay sunucuları içeriği kesinlikle göremez.
+5. **⚠️ NIP-59 Silme (Deletion) Davranışı ve Relay Sınırlaması:** NIP-59 Gift Wrap (`kind: 1059`) zarfları üst veri ve gönderici gizliliği için her oluşturulduğunda rastgele üretilen geçici (ephemeral) bir anahtarla imzalanır. NIP-09 silme protokolüne göre relay'ler bir silme isteğini yalnızca imzalayan pubkey hedef event'in pubkey'iyle uyuşuyorsa işleme alır. Bu nedenle gizli notlar NIP-09 (`kind: 5`) ile relay'lerden silinemez; uygulamada yapılan silme işlemi notu yalnızca yerel görünümünüzden ve önbelleğinizden kaldırır.
 
 ---
 
@@ -48,6 +49,7 @@ Nostr Second Brain, notlarınızı sadece Nostr relay'lerinde ve IndexedDB önbe
    Not içeriğiniz bu alanda yer alır. [[Diğer Not]] referansı verebilirsiniz.
    ```
 4. **Dosya Yükleme & Aktarma (Import/Export):** Sol menüdeki **"📂 MD Yükle"** butonunu kullanarak bilgisayarınızdaki mevcut `.md` dosyalarını uygulamaya aktarabilir, düzenleyip Nostr üzerinde imzalayabilirsiniz.
+5. **🔒 Gizli Notlar için Diske Senkronizasyon (Opt-in):** Yerel diske yazılan `.md` dosyaları şifrelenmemiş düz metindir. Bu nedenle gizli/şifreli (Gift Wrap) notların yerel diske senkronizasyonu varsayılan olarak kapalıdır (opt-in). İsterseniz **Ayarlar** menüsünden *"Gizli (Gift Wrap) Notları Yerel Diske Senkronize Et"* seçeneğini işaretleyerek bu davranışı aktifleştirebilirsiniz.
 
 ---
 

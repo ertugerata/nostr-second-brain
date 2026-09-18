@@ -26,6 +26,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   const [selectedDirName, setSelectedDirName] = useState<string | null>(
     LocalFileSyncService.getSelectedDirectoryName()
   );
+  const [syncPrivateNotes, setSyncPrivateNotes] = useState<boolean>(() =>
+    LocalFileSyncService.isSyncPrivateNotesEnabled()
+  );
 
   // Npub Alıcı Yönetimi State'leri
   const [allowedNpubs, setAllowedNpubs] = useState<string[]>([]);
@@ -256,7 +259,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
         <p style={{ fontSize: 12, color: "var(--text-muted, #64748b)", marginBottom: 12 }}>
           Bilgisayarınızda belirleyeceğiniz bir klasöre, yazdığınız veya güncellediğiniz notlar anında Markdown (.md) ve YAML Frontmatter formatında otomatik kaydedilir.
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <button
             type="button"
             onClick={handleSelectDirectory}
@@ -271,6 +274,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
               <span style={{ color: "var(--text-muted, #64748b)" }}>Henüz yerel klasör seçilmedi</span>
             )}
           </span>
+        </div>
+
+        <div style={{ borderTop: "1px solid var(--input-border, #e2e8f0)", paddingTop: 10, marginTop: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={syncPrivateNotes}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setSyncPrivateNotes(val);
+                LocalFileSyncService.setSyncPrivateNotes(val);
+                if (val) {
+                  setStatus("⚠️ UYARI: Gizli notların yerel diske senkronizasyonu açıldı. Gizli notlar yerel diskte şifrelenmemiş düz metin (.md) olarak saklanacaktır.");
+                } else {
+                  setStatus("Gizli notların yerel diske senkronizasyonu kapatıldı. Gizli notlar diske yazılmayacaktır.");
+                }
+              }}
+            />
+            🔒 Gizli (Gift Wrap) Notları Yerel Diske Senkronize Et
+          </label>
+          <p style={{ fontSize: 11, color: "var(--text-muted, #64748b)", marginTop: 4, marginLeft: 22, lineHeight: 1.4 }}>
+            ⚠️ <strong>Gizlilik Uyarısı:</strong> Yerel diske yazılan <code>.md</code> dosyaları şifrelenmez (düz metin). Gizli notlarınızın bilgisayarınızda açık metin olarak saklanmasını istemiyorsanız bu seçeneği kapalı tutun (varsayılan: kapalı).
+          </p>
         </div>
       </div>
 
