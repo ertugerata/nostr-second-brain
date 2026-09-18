@@ -116,6 +116,7 @@ export class NostrService {
       console.warn("Relay bağlantı zaman aşımı:", e);
     }
     this.isConnected = true;
+    this.setupAutoReconnect();
   }
 
   /**
@@ -135,11 +136,80 @@ export class NostrService {
       this.ndk.signer = new NDKPrivateKeySigner(hexKey);
       await this.ndk.connect();
       this.isConnected = true;
+      this.setupAutoReconnect();
       return true;
     } catch (error) {
       console.error("NIP-49 Parola doğrulama hatası:", error);
       throw new Error("Hatalı parola veya bozuk anahtar verisi!");
     }
+  }
+
+  /**
+   * Sekme arka plandan öne geldiğinde veya cihaz tekrar internete
+   * bağlandığında kopmuş relay bağlantılarını otomatik olarak yeniden kurar.
+   * Özellikle iOS/macOS Safari, sekme arka plandayken veya cihaz kilitliyken
+   * WebSocket bağlantılarını agresif şekilde kapatır; bu yüzden bu dinleyiciler
+   * PWA olsun olmasın (düz web sitesi olarak da) gereklidir.
+   */
+  private autoReconnectSetup: boolean = false;
+
+  public setupAutoReconnect(): void {
+    if (this.autoReconnectSetup) return;
+    this.autoReconnectSetup = true;
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.reconnectDeadRelays();
+      }
+    });
+
+    window.addEventListener("online", () => {
+      this.reconnectDeadRelays();
+    });
+  }
+
+  /**
+   * Bağlantısı kopmuş (connected === false) relay'leri tespit edip
+   * yeniden bağlanmayı dener. Her relay için ayrı ayrı hata yakalar,
+   * böylece bir relay başarısız olsa da diğerlerini etkilemez.
+   */
+  private reconnectDeadRelays(): void {
+    if (!this.ndk || !this.ndk.pool) return;
+
+    const deadRelays = Array.from(this.ndk.pool.relays.values()).filter(
+      (relay) => !relay.connected
+    );
+
+    if (deadRelays.length === 0) {
+      console.debug("[NostrService] Tüm relay'ler zaten bağlı, yeniden bağlanma gerekmiyor.");
+      return;
+    }
+
+    console.debug(
+      `[NostrService] ${deadRelays.length} kopuk relay tespit edildi, yeniden bağlanılıyor:`,
+      deadRelays.map((r) => r.url)
+    );
+
+    let revivedCount = 0;
+    let failedCount = 0;
+
+    deadRelays.forEach((relay) => {
+      relay
+        .connect()
+        .then(() => {
+          revivedCount++;
+          console.debug(
+            `[NostrService] Bağlantı canlandı (${revivedCount}/${deadRelays.length}): ${relay.url}`
+          );
+        })
+        .catch((e) => {
+          failedCount++;
+          console.warn(
+            `[NostrService] Yeniden bağlanma başarısız (${failedCount} hata): ${relay.url}`,
+            e
+          );
+        });
+    });
   }
 
   /**
