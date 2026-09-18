@@ -86,29 +86,34 @@ export class NostrService {
   private userSecretKey?: Uint8Array;
 
   private autoReconnectTimer?: any;
+  private autoReconnectSetup: boolean = false;
 
+  /**
+   * Sekme arka plandan öne geldiğinde, cihaz tekrar internete bağlandığında
+   * veya periyodik aralıklarla kopmuş relay bağlantılarını otomatik olarak yeniden kurar.
+   */
   public setupAutoReconnect(intervalMs: number = 10000): void {
     if (this.autoReconnectTimer) {
       clearInterval(this.autoReconnectTimer);
     }
 
     this.autoReconnectTimer = setInterval(() => {
-      if (!this.ndk || !this.ndk.pool) return;
-
-      const disconnectedRelays = Array.from(this.ndk.pool.relays.values()).filter(
-        (relay) => !relay.connected
-      );
-
-      if (disconnectedRelays.length > 0) {
-        disconnectedRelays.forEach((relay) => {
-          try {
-            relay.connect();
-          } catch (e) {
-            console.warn(`Relay (${relay.url}) yeniden bağlanma denemesi başarısız:`, e);
-          }
-        });
-      }
+      this.reconnectDeadRelays();
     }, intervalMs);
+
+    if (!this.autoReconnectSetup) {
+      this.autoReconnectSetup = true;
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          this.reconnectDeadRelays();
+        }
+      });
+
+      window.addEventListener("online", () => {
+        this.reconnectDeadRelays();
+      });
+    }
   }
 
   public async connect(): Promise<void> {
@@ -168,30 +173,6 @@ export class NostrService {
       console.error("NIP-49 Parola doğrulama hatası:", error);
       throw new Error("Hatalı parola veya bozuk anahtar verisi!");
     }
-  }
-
-  /**
-   * Sekme arka plandan öne geldiğinde veya cihaz tekrar internete
-   * bağlandığında kopmuş relay bağlantılarını otomatik olarak yeniden kurar.
-   * Özellikle iOS/macOS Safari, sekme arka plandayken veya cihaz kilitliyken
-   * WebSocket bağlantılarını agresif şekilde kapatır; bu yüzden bu dinleyiciler
-   * PWA olsun olmasın (düz web sitesi olarak da) gereklidir.
-   */
-  private autoReconnectSetup: boolean = false;
-
-  public setupAutoReconnect(): void {
-    if (this.autoReconnectSetup) return;
-    this.autoReconnectSetup = true;
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        this.reconnectDeadRelays();
-      }
-    });
-
-    window.addEventListener("online", () => {
-      this.reconnectDeadRelays();
-    });
   }
 
   /**
