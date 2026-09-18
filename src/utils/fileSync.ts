@@ -1,5 +1,28 @@
+const SYNC_PRIVATE_NOTES_KEY = "nostr_sync_private_notes";
+
+export interface LocalSaveResult {
+  saved: boolean;
+  skippedPrivate?: boolean;
+  error?: string;
+}
+
 export class LocalFileSyncService {
   private static dirHandle: FileSystemDirectoryHandle | null = null;
+
+  /**
+   * Gizli (Gift Wrap) notların yerel diske senkronize edilip edilmeyeceğini kontrol eder.
+   * Varsayılan olarak gizlilik ve güvenlik amacıyla kapalıdır (false).
+   */
+  public static isSyncPrivateNotesEnabled(): boolean {
+    return localStorage.getItem(SYNC_PRIVATE_NOTES_KEY) === "true";
+  }
+
+  /**
+   * Gizli notların yerel diske senkronizasyon ayarını günceller.
+   */
+  public static setSyncPrivateNotes(enabled: boolean): void {
+    localStorage.setItem(SYNC_PRIVATE_NOTES_KEY, enabled ? "true" : "false");
+  }
 
   /**
    * Kullanıcıdan bilgisayarındaki bir klasörü seçmesini ister
@@ -27,8 +50,21 @@ export class LocalFileSyncService {
   /**
    * Not kaydedildiği anda belirtilen yerel klasörde slug.md dosyası oluşturur veya günceller
    */
-  public static async saveNoteToLocalDisk(slug: string, content: string, pubkey: string, createdAt: number): Promise<void> {
-    if (!this.dirHandle) return;
+  public static async saveNoteToLocalDisk(
+    slug: string,
+    content: string,
+    pubkey: string,
+    createdAt: number,
+    isPrivate: boolean = false
+  ): Promise<LocalSaveResult> {
+    if (!this.dirHandle) {
+      return { saved: false };
+    }
+
+    if (isPrivate && !this.isSyncPrivateNotesEnabled()) {
+      console.log(`[Yerel Disk] Gizli not (${slug}) için yerel disk senkronizasyonu kapalı olduğundan pas geçildi.`);
+      return { saved: false, skippedPrivate: true };
+    }
 
     try {
       const fileName = `${slug}.md`;
@@ -40,6 +76,7 @@ export class LocalFileSyncService {
 title: "${slug}"
 pubkey: "${pubkey}"
 created_at: ${createdAt}
+is_private: ${isPrivate}
 ---
 
 ${content}`;
@@ -47,8 +84,10 @@ ${content}`;
       await writable.write(fileContent);
       await writable.close();
       console.log(`[Yerel Disk] ${fileName} dosyası başarıyla güncellendi.`);
-    } catch (err) {
+      return { saved: true };
+    } catch (err: any) {
       console.error("[Yerel Disk] Yazma hatası:", err);
+      return { saved: false, error: err?.message || String(err) };
     }
   }
 

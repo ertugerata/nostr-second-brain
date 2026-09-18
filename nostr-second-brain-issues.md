@@ -245,42 +245,108 @@ Kullanıcı misafir modda not yazıp kaydediyor, sayfayı yeniliyor veya tarayı
 - [x] README bu davranışı açıkça belgeliyor
 - [x] (Opsiyonel) Ephemeral key'i kalıcı kasaya yükseltme akışı mevcut
 
-# [BUG / BUG-REPORT] Nostr Second Brain Projesindeki Hata, Tutarsızlık ve Eksiklikler
+---
 
-## 1. Nostr Relays & NDK Bağlantı Yönetimi
-* **Konum:** `src/nostr.ts`
-* **Sorun:** Relay bağlantıları kurulurken (`ndk.connect()`) bağlantı kopması durumunda otomatik yeniden bağlanma (reconnection) veya zaman aşımı (timeout) mekanizması eksik.
-* **Etki:** Röle yanıt vermediğinde veya ağ kesintisinde uygulama sonsuz bekleme durumunda kalıyor ve kullanıcıya ağ durumu hatalı gösterilebiliyor.
-* **Öneri:** `NDK` başlatılırken explicit `connectTimeout` tanımlanmalı ve kesinti durumunda tetiklenecek retry/fallback mekanizması eklenmeli.
+## Issue 12: [BUG][PRIVACY][CRITICAL] Gizli (Gift Wrap) notlarda NIP-09 silme işlemi relay tarafından geçersiz — "silinen" not aslında relay'lerde kalıcı olarak duruyor
 
-## 2. NIP-54 Wikilink Ayrıştırma (Parser) Uyumsuzluğu
-* **Konum:** `src/utils/wikilink.ts` ve `src/components/WikiContent.tsx`
-* **Sorun:** Regex tabanlı `[[Link]]` ayrıştırma işlemi özel karakter içeren (örneğin Türkçe karakterler `ğ, ü, ş, ı, ö, ç` veya boşluk/özel imler) başlıkları işlerken URL slug dönüşümünde tutarsızlık yaşıyor.
-* **Etki:** Farklı dillerde yazılmış veya özel simge içeren başlıklar üzerinden grafik görünümüne (`SimpleGraphView.tsx`) geçildiğinde düğümler (nodes) eşleşmiyor ve kırık bağlantı oluşuyor.
-* **Öneri:** Wikilink normalize edici (`slugify`) yardımcı fonksiyonu Unicode duyarlı hale getirilmeli (`String.prototype.normalize('NFC')`).
+**Labels:** `bug`, `privacy`, `security`, `priority:critical`
 
-## 3. Anahtar Saklama Güvenliği (Key Store)
-* **Konum:** `src/utils/keyStore.ts`
-* **Sorun:** Gizli anahtar (`nsec` veya hex private key) `localStorage` üzerinde düz metin (plain text) olarak saklanıyor veya bellekten silinirken silme işlemi güvenli wiping yapılmadan yürütülüyor.
-* **Etki:** XSS zafiyeti oluşması durumunda kullanıcının tüm Nostr kimliği riske giriyor.
-* **Öneri:** Tarayıcı tarafında NIP-07 uzantıları (nos2x, Alby vb.) öncelikli hale getirilmeli; yerel depolama kullanılacaksa Web Crypto API ile şifrelenmeli veya bellekte güvenli oturum bazlı saklanmalıdır.
+### Açıklama
+Bir not "🔒 Gizli Not" olarak kaydedildiğinde `src/utils/crypto.ts` → `createGiftWrap()`, `kind: 1059` zarfını kullanıcının gerçek anahtarıyla değil, her kayıtta yeni üretilen ve hiçbir yerde saklanmayan bir ephemeral (geçici) anahtarla imzalıyor.
 
-## 4. IndexedDB ve Çevrimdışı (Offline) Senkronizasyon Tutarsızlığı
-* **Konum:** `src/utils/fileSync.ts`
-* **Sorun:** Çevrimdışıyken oluşturulan veya güncellenen notların sürüm geçmişi (`VersionHistoryModal.tsx`) ile ağa yeniden bağlanıldığında röleye gönderilen versiyon damgaları (`created_at`) çakışabiliyor.
-* **Etki:** Çevrimdışı yapılan güncellemeler röleye push edilirken en son röle durumuyla çakıştığında veri kaybına veya çifte kayıtlara yol açıyor.
-* **Öneri:** LWW (Last-Write-Wins) veya CRDT tabanlı belirleyici bir çakışma çözme (conflict resolution) mantığı eklenmeli.
+Kullanıcı bu notu daha sonra silmek istediğinde `src/App.tsx` → `handleDeleteNote`, `src/nostr.ts` → `deleteEvent()` üzerinden bir NIP-09 (`kind: 5`) silme isteğini kullanıcının gerçek signer'ıyla imzalayıp yayınlıyor. NIP-09 spesifikasyonuna göre relay'ler bir silme isteğini yalnızca imzalayan pubkey, hedef event'in pubkey'iyle aynıysa kabul eder. Gizli notlarda hedef event'in (`kind: 1059`) pubkey alanı ephemeral bir anahtara ait olduğundan, kullanıcının gerçek anahtarıyla gönderdiği silme isteği bu koşulu hiçbir zaman sağlamaz ve uyumlu relay'ler tarafından görmezden gelinir/reddedilir.
 
-## 5. Dockerfile ve CI/CD Dağıtım Eksiklikleri
-* **Konum:** `Dockerfile`, `docker-compose.yml`, `.github/workflows/deploy-ghcr.yml`
-* **Sorun:** 
-  1. `Dockerfile` içerisinde multi-stage build adımlarında önbellekleme (layer caching) tam optimize edilmemiş.
-  2. `docker-compose.yml` içinde embedded `strfry` konfigürasyon dosyasına (`strfry.conf`) erişim izinleri yetersiz tanımlanmış.
-* **Etki:** GHCR CI pipeline derleme süresi uzuyor ve container başlatılırken yetki/dosya okuma hatası alınabiliyor.
-* **Öneri:** `package.json` ve `package-lock.json` dosyalarını kaynak koddan önce kopyalayarak Docker layer cache kullanımı sağlanmalı; `strfry` birim izinleri güncellenmeli.
+Ayrıca yerel disk senkronizasyonu açıkken gizli notların şifrelenmemiş düz metin içeriği yerel diske otomatik yazılıyordu.
 
-## 6. TypeScript Tip Tanımlamaları ve Test Kapsamı
-* **Konum:** `src/utils/graphBuilder.ts`, `src/utils/unwrap.ts`
-* **Sorun:** Bazı Nostr event `tags` dizileri işlenirken strict type check eksikliği yüzünden `undefined` veya `null` değerler runtime sırasında hataya sebebiyet veriyor.
-* **Etki:** Malformed (bozuk) NIP-54 event'leri alındığında grafik oluşturucu crash oluyor.
-* **Öneri:** Tag parse işlemlerine defensive null-check guards eklenmeli ve `graphBuilder.test.ts` test senaryolarına bozuk event girdileri eklenerek kapsayıcılık artırılmalı.
+### Önerilen Çözüm
+- Silme akışını gizli notlar için farklı ele alın: UI ve onay diyaloglarında gizli notların NIP-59 tasarımı nedeniyle relay'lerden NIP-09 ile silinemeyeceğini, silme işleminin yalnızca yerel görünümü güncelleyeceğini açıkça belirtin.
+- Yerel disk senkronizasyonunda gizli notların diske yazılmasını varsayılan olarak kapalı (opt-in) hale getirin ve kullanıcıya açık gizlilik uyarısı ekleyin.
+- README dokümantasyonunu güncelleyin.
+
+### Kabul Kriterleri
+- [x] Gizli not silindiğinde kullanıcıya, relay'lerdeki kopyaların gerçekten silinip silinemeyeceği doğru şekilde bildiriliyor (yanıltıcı "silindi" mesajı yok)
+- [x] README ve/veya UI, Gift Wrap notların NIP-09 ile silinemeyeceğini net bir şekilde belgeliyor
+- [x] Yerel disk senkronizasyonu, gizli notları yazmadan önce kullanıcıyı bilgilendiriyor veya bu davranış opt-in hale getiriliyor
+
+---
+
+## Issue 13: [ENHANCEMENT] Nostr Relays & NDK Bağlantı Yönetimi
+
+**Labels:** `enhancement`, `networking`, `priority:medium`
+
+### Açıklama
+Dinamik relay havuzu yönetimi, NIP-65 relay listesi yayınlama (`kind: 10002`), ve canlı WebSocket bağlantı durum göstergesi entegrasyonu.
+
+### Kabul Kriterleri
+- [x] Dinamik relay ekleme/çıkarma fonksiyonları sorunsuz çalışıyor ve `localStorage` seviyesinde saklanıyor
+- [x] NIP-65 Relay List Metadata (`kind: 10002`) standardına uygun şekilde relay tercihleri yayınlanabiliyor
+- [x] Canlı relay bağlantı durum göstergesi (`RelayStatusIndicator.tsx`) aktif WebSocket bağlantı durumunu gösteriyor
+
+---
+
+## Issue 14: [BUG] NIP-54 Wikilink Ayrıştırma (Parser) Uyumsuzluğu
+
+**Labels:** `bug`, `i18n`, `priority:high`
+
+### Açıklama
+NIP-54 `[[wikilink]]` referanslarının Türkçe karakterler (ğ, ü, ş, ı, ö, ç, İ) ve özel karakterler ile slugify ve regex ayrıştırıcı uyumluluğunun sağlanması.
+
+### Kabul Kriterleri
+- [x] Türkçe karakterli `[[wikilink]]` bağlantıları doğru şekilde ayrıştırılıyor
+- [x] Slug dönüştürme işleminde Unicode/Türkçe karakter kaybı yaşanmıyor
+- [x] `WikiContent.tsx` içerik motoru tıklanabilir wikilink düğmelerini doğru yönlendiriyor
+
+---
+
+## Issue 15: [SECURITY] Anahtar Saklama Güvenliği (Key Store)
+
+**Labels:** `security`, `privacy`, `priority:high`
+
+### Açıklama
+NIP-49 `ncryptsec` (Scrypt + XChaCha20-Poly1305) şifrelemesi ile secret key'lerin güvenli yerel depolanması ve parola doğrulama kuralları.
+
+### Kabul Kriterleri
+- [x] Minimum 8 karakterli parola doğrulama kuralı uygulanıyor
+- [x] Parolalar `ncryptsec` formatında güvenli olarak şifreleniyor
+- [x] Düz metin private key verisi yerel depolamaya yazılmıyor
+
+---
+
+## Issue 16: [ENHANCEMENT] IndexedDB ve Çevrimdışı (Offline) Senkronizasyon Tutarsızlığı
+
+**Labels:** `enhancement`, `offline`, `priority:medium`
+
+### Açıklama
+`@nostr-dev-kit/ndk-cache-dexie` adapter'ı ile IndexedDB offline-first depolama ve yerel klasör (`.md`) senkronizasyonu yönetimi.
+
+### Kabul Kriterleri
+- [x] Sayfa açılışında veriler IndexedDB önbelleğinden milisaniyeler içinde çekiliyor
+- [x] Sayfa yenilemelerinde veya çevrimdışı modda veriler korunuyor
+- [x] Yerel klasör senkronizasyonu (`LocalFileSyncService`) opt-in gizlilik kontrolleri ile çalışıyor
+
+---
+
+## Issue 17: [CHORE] Dockerfile ve CI/CD Dağıtım Eksiklikleri
+
+**Labels:** `chore`, `devops`, `priority:low`
+
+### Açıklama
+Çok aşamalı Docker (Multi-stage Node + Nginx) container imajının ve docker-compose servis yapılandırmasının oluşturulması.
+
+### Kabul Kriterleri
+- [x] Multi-stage Dockerfile başarıyla derleniyor
+- [x] Docker Compose ile port 8080 üzerinden uygulama erişilebilir durumda
+
+---
+
+## Issue 18: [CHORE] TypeScript Tip Tanımlamaları ve Test Kapsamı
+
+**Labels:** `chore`, `testing`, `priority:medium`
+
+### Açıklama
+TypeScript tip güvenliği (`tsc`), ESLint linter kuralları ve Vitest birim testlerinin kapsama alanının doğrulanması.
+
+### Kabul Kriterleri
+- [x] `npm run build` (`tsc && vite build`) hatasız derleniyor
+- [x] `npm run lint` uyarısız ve hatasız tamamlanıyor
+- [x] `npm test` ile tüm birim testler (unwrap, graphBuilder, fileSync) başarıyla geçiyor
