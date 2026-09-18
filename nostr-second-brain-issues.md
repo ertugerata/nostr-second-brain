@@ -267,3 +267,86 @@ Ayrıca yerel disk senkronizasyonu açıkken gizli notların şifrelenmemiş dü
 - [x] Gizli not silindiğinde kullanıcıya, relay'lerdeki kopyaların gerçekten silinip silinemeyeceği doğru şekilde bildiriliyor (yanıltıcı "silindi" mesajı yok)
 - [x] README ve/veya UI, Gift Wrap notların NIP-09 ile silinemeyeceğini net bir şekilde belgeliyor
 - [x] Yerel disk senkronizasyonu, gizli notları yazmadan önce kullanıcıyı bilgilendiriyor veya bu davranış opt-in hale getiriliyor
+
+---
+
+## Issue 13: [ENHANCEMENT] Nostr Relays & NDK Bağlantı Yönetimi
+
+**Labels:** `enhancement`, `networking`, `priority:medium`
+
+### Açıklama
+Dinamik relay havuzu yönetimi, NIP-65 relay listesi yayınlama (`kind: 10002`), ve canlı WebSocket bağlantı durum göstergesi entegrasyonu.
+
+### Kabul Kriterleri
+- [x] Dinamik relay ekleme/çıkarma fonksiyonları sorunsuz çalışıyor ve `localStorage` seviyesinde saklanıyor
+- [x] NIP-65 Relay List Metadata (`kind: 10002`) standardına uygun şekilde relay tercihleri yayınlanabiliyor
+- [x] Canlı relay bağlantı durum göstergesi (`RelayStatusIndicator.tsx`) aktif WebSocket bağlantı durumunu gösteriyor
+
+---
+
+## Issue 14: [BUG] NIP-54 Wikilink Ayrıştırma (Parser) Uyumsuzluğu
+
+**Labels:** `bug`, `i18n`, `priority:high`
+
+### Açıklama
+NIP-54 `[[wikilink]]` referanslarının Türkçe karakterler (ğ, ü, ş, ı, ö, ç, İ) ve özel karakterler ile slugify ve regex ayrıştırıcı uyumluluğunun sağlanması.
+
+### Kabul Kriterleri
+- [x] Türkçe karakterli `[[wikilink]]` bağlantıları doğru şekilde ayrıştırılıyor
+- [x] Slug dönüştürme işleminde Unicode/Türkçe karakter kaybı yaşanmıyor
+- [x] `WikiContent.tsx` içerik motoru tıklanabilir wikilink düğmelerini doğru yönlendiriyor
+
+---
+
+## Issue 15: [SECURITY] Anahtar Saklama Güvenliği (Key Store)
+
+**Labels:** `security`, `privacy`, `priority:high`
+
+### Açıklama
+NIP-49 `ncryptsec` (Scrypt + XChaCha20-Poly1305) şifrelemesi ile secret key'lerin güvenli yerel depolanması ve parola doğrulama kuralları.
+
+### Kabul Kriterleri
+- [x] Minimum 8 karakterli parola doğrulama kuralı uygulanıyor
+- [x] Parolalar `ncryptsec` formatında güvenli olarak şifreleniyor
+- [x] Düz metin private key verisi yerel depolamaya yazılmıyor
+
+---
+
+## Issue 16: [ENHANCEMENT] IndexedDB ve Çevrimdışı (Offline) Senkronizasyon Tutarsızlığı
+
+**Labels:** `enhancement`, `offline`, `priority:medium`
+
+### Açıklama
+`@nostr-dev-kit/ndk-cache-dexie` adapter'ı ile IndexedDB offline-first depolama ve yerel klasör (`.md`) senkronizasyonu yönetimi.
+
+### Kabul Kriterleri
+- [x] Sayfa açılışında veriler IndexedDB önbelleğinden milisaniyeler içinde çekiliyor
+- [x] Sayfa yenilemelerinde veya çevrimdışı modda veriler korunuyor
+- [x] Yerel klasör senkronizasyonu (`LocalFileSyncService`) opt-in gizlilik kontrolleri ile çalışıyor
+
+---
+
+## Issue 17: [CHORE] Dockerfile ve CI/CD Dağıtım Eksiklikleri
+
+**Labels:** `chore`, `devops`, `priority:low`
+
+### Açıklama
+Çok aşamalı Docker (Multi-stage Node + Nginx) container imajının ve docker-compose servis yapılandırmasının oluşturulması.
+
+### Kabul Kriterleri
+- [x] Multi-stage Dockerfile başarıyla derleniyor
+- [x] Docker Compose ile port 8080 üzerinden uygulama erişilebilir durumda
+
+---
+
+## Issue 18: [CHORE] TypeScript Tip Tanımlamaları ve Test Kapsamı
+
+**Labels:** `chore`, `testing`, `priority:medium`
+
+### Açıklama
+TypeScript tip güvenliği (`tsc`), ESLint linter kuralları ve Vitest birim testlerinin kapsama alanının doğrulanması.
+
+### Kabul Kriterleri
+- [x] `npm run build` (`tsc && vite build`) hatasız derleniyor
+- [x] `npm run lint` uyarısız ve hatasız tamamlanıyor
+- [x] `npm test` ile tüm birim testler (unwrap, graphBuilder, fileSync) başarıyla geçiyor
