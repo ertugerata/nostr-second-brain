@@ -1,9 +1,38 @@
-import { describe, it, expect } from "vitest";
-import { generateSecretKey, getPublicKey, finalizeEvent, nip44 } from "nostr-tools";
+import { describe, it, expect, beforeEach } from "vitest";
+import { generateSecretKey, getPublicKey, finalizeEvent, nip44, nip19 } from "nostr-tools";
 import { unwrapGift } from "./unwrap";
 import { createGiftWrap, encryptContent, decryptContent } from "./crypto";
 import { slugify } from "./wikilink";
 import { validateAndEvaluatePassphrase } from "./keyStore";
+import {
+  validateNpub,
+  addAllowedNpub,
+  removeAllowedNpub,
+  getAllowedNpubs,
+  getAllowedRecipientPubkeys,
+} from "./recipientStore";
+
+// Mock localStorage for node environment in vitest
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageMock,
+  writable: true,
+});
 
 describe("unwrapGift & Security Tests", () => {
   it("encrypts and decrypts content using NIP-44 (encryptContent / decryptContent)", () => {
@@ -31,6 +60,40 @@ describe("unwrapGift & Security Tests", () => {
     expect(rumor).not.toBeNull();
     expect(rumor.content).toBe("Test Secret Content");
     expect(rumor.pubkey).toBe(getPublicKey(userSecretKey));
+  });
+
+  it("unwraps Gift Wrap created for specified recipient pubkey", () => {
+    const senderSecretKey = generateSecretKey();
+    const recipientSecretKey = generateSecretKey();
+    const recipientPubkey = getPublicKey(recipientSecretKey);
+    const eveSecretKey = generateSecretKey();
+
+    const giftWrap = createGiftWrap(
+      "Özel Paylaşılan Not İçeriği",
+      senderSecretKey,
+      [["d", "shared-private-note"]],
+      recipientPubkey
+    );
+
+    // Step 1 check
+    const sealJson = decryptContent(giftWrap.content, recipientSecretKey, giftWrap.pubkey);
+    const sealEvent = JSON.parse(sealJson);
+    expect(sealEvent.kind).toBe(13);
+
+    // Step 2 check
+    const rumorJson = decryptContent(sealEvent.content, recipientSecretKey, sealEvent.pubkey);
+    const rumorFromSeal = JSON.parse(rumorJson);
+    expect(rumorFromSeal.content).toBe("Özel Paylaşılan Not İçeriği");
+
+    // Full unwrap check
+    const rumor = unwrapGift(giftWrap, recipientSecretKey);
+    expect(rumor).not.toBeNull();
+    expect(rumor.content).toBe("Özel Paylaşılan Not İçeriği");
+    expect(rumor.pubkey).toBe(getPublicKey(senderSecretKey));
+
+    // Eve attempt check
+    const eveAttempt = unwrapGift(giftWrap, eveSecretKey);
+    expect(eveAttempt).toBeNull();
   });
 
   it("returns null when rumor.pubkey !== sealEvent.pubkey (Spoofing Protection)", () => {
@@ -87,5 +150,61 @@ describe("unwrapGift & Security Tests", () => {
   it("validateAndEvaluatePassphrase rejects passphrases shorter than 8 chars", () => {
     expect(validateAndEvaluatePassphrase("1234").isValid).toBe(false);
     expect(validateAndEvaluatePassphrase("StrongP@ss123").isValid).toBe(true);
+  });
+});
+
+describe("recipientStore Npub Management Tests", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("validateNpub correctly validates valid npubs and rejects invalid strings", () => {
+    const sk = generateSecretKey();
+    const pk = getPublicKey(sk);
+    const validNpub = nip19.npubEncode(pk);
+
+    const resValid = validateNpub(validNpub);
+    expect(resValid.valid).toBe(true);
+    expect(resValid.hexPubkey).toBe(pk);
+
+    const resInvalidFormat = validateNpub("invalid12345");
+    expect(resInvalidFormat.valid).toBe(false);
+
+    const resEmpty = validateNpub("   ");
+    expect(resEmpty.valid).toBe(false);
+  });
+
+  it("addAllowedNpub, getAllowedNpubs, removeAllowedNpub, and getAllowedRecipientPubkeys work as expected", () => {
+    const sk1 = generateSecretKey();
+    const pk1 = getPublicKey(sk1);
+    const npub1 = nip19.npubEncode(pk1);
+
+    const sk2 = generateSecretKey();
+    const pk2 = getPublicKey(sk2);
+    const npub2 = nip19.npubEncode(pk2);
+
+    expect(getAllowedNpubs()).toEqual([]);
+
+    const addRes1 = addAllowedNpub(npub1);
+    expect(addRes1.success).toBe(true);
+    expect(addRes1.hexPubkey).toBe(pk1);
+
+    expect(getAllowedNpubs()).toEqual([npub1]);
+
+    // Mükerrer ekleme engellenmeli
+    const duplicateAdd = addAllowedNpub(npub1);
+    expect(duplicateAdd.success).toBe(false);
+
+    // İkinci npub ekle
+    addAllowedNpub(npub2);
+    expect(getAllowedNpubs()).toEqual([npub1, npub2]);
+
+    expect(getAllowedRecipientPubkeys()).toEqual([pk1, pk2]);
+
+    // Silme
+    const removeRes = removeAllowedNpub(npub1);
+    expect(removeRes).toBe(true);
+    expect(getAllowedNpubs()).toEqual([npub2]);
+    expect(getAllowedRecipientPubkeys()).toEqual([pk2]);
   });
 });

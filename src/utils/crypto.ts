@@ -18,9 +18,11 @@ export function decryptContent(ciphertext: string, secretKey: Uint8Array, sender
 export function createGiftWrap(
   innerEventContent: string,
   userSecretKey: Uint8Array,
-  tags: string[][] = [["private", "true"]]
+  tags: string[][] = [["private", "true"]],
+  recipientPubkey?: string
 ): any {
   const userPubkey = getPublicKey(userSecretKey);
+  const targetPubkey = recipientPubkey || userPubkey;
 
   const rumorTags = [...tags];
   if (!rumorTags.some((t) => t[0] === "private")) {
@@ -37,7 +39,7 @@ export function createGiftWrap(
   };
 
   // 2. Mühürleme (Seal - kind: 13): Rumor'u kullanıcının kendi anahtarıyla şifreler (encryptContent)
-  const encryptedRumor = encryptContent(JSON.stringify(rumor), userSecretKey, userPubkey);
+  const encryptedRumor = encryptContent(JSON.stringify(rumor), userSecretKey, targetPubkey);
 
   const sealEvent = finalizeEvent({
     kind: 13,
@@ -48,13 +50,13 @@ export function createGiftWrap(
 
   // 3. Gift Wrap (kind: 1059): Ephemeral (geçici) key ile zarflama (encryptContent)
   const ephemeralSecretKey = generateSecretKey();
-  const encryptedSeal = encryptContent(JSON.stringify(sealEvent), ephemeralSecretKey, userPubkey);
+  const encryptedSeal = encryptContent(JSON.stringify(sealEvent), ephemeralSecretKey, targetPubkey);
 
   const giftWrapEvent = finalizeEvent({
     kind: 1059,
     content: encryptedSeal,
     created_at: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400), // Rastgele timestamp
-    tags: [["p", userPubkey]], // Zarfa sadece alıcı pubkey yazılır
+    tags: [["p", targetPubkey]], // Zarfa sadece alıcı pubkey yazılır
   }, ephemeralSecretKey);
 
   return giftWrapEvent;

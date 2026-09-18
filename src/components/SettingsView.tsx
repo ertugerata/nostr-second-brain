@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { NDKEvent, NDKRelay } from "@nostr-dev-kit/ndk";
 import { nostrService } from "../nostr";
 import { LocalFileSyncService } from "../utils/fileSync";
+import {
+  getAllowedNpubs,
+  addAllowedNpub,
+  removeAllowedNpub,
+  validateNpub,
+} from "../utils/recipientStore";
 
 interface RelayConfig {
   url: string;
@@ -21,7 +27,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     LocalFileSyncService.getSelectedDirectoryName()
   );
 
-  // Mevcut NDK ve Stored Relay Havuzunu Yükle
+  // Npub Alıcı Yönetimi State'leri
+  const [allowedNpubs, setAllowedNpubs] = useState<string[]>([]);
+  const [newNpub, setNewNpub] = useState("");
+  const [npubStatus, setNpubStatus] = useState("");
+
+  // Mevcut NDK, Stored Relay Havuzunu ve Npub Alıcı Listesini Yükle
   useEffect(() => {
     const currentUrls = nostrService.getRelayUrls();
     const activePool = Array.from(nostrService.ndk.pool.relays.values()).map((r: NDKRelay) => r.url);
@@ -33,7 +44,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       write: true,
     }));
     setRelays(initialRelays);
+    setAllowedNpubs(getAllowedNpubs());
   }, []);
+
+  // Npub Ekleme İşleyicisi
+  const handleAddNpub = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNpub.trim()) return;
+
+    const res = addAllowedNpub(newNpub);
+    if (res.success) {
+      setAllowedNpubs(getAllowedNpubs());
+      setNewNpub("");
+      setNpubStatus(`✅ ${res.message} (Hex: ${res.hexPubkey?.slice(0, 12)}...)`);
+    } else {
+      setNpubStatus(`❌ ${res.message}`);
+    }
+  };
+
+  // Npub Silme İşleyicisi
+  const handleRemoveNpub = (npubToRemove: string) => {
+    const success = removeAllowedNpub(npubToRemove);
+    if (success) {
+      setAllowedNpubs(getAllowedNpubs());
+      setNpubStatus(`Adres kaldırıldı: ${npubToRemove.slice(0, 16)}...`);
+    }
+  };
 
   // Yerel Klasör Seçimi (Local Directory Sync)
   const handleSelectDirectory = async () => {
@@ -142,7 +178,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, background: "var(--bg-primary, #fff)", borderRadius: 8, border: "1px solid var(--input-border, #e2e8f0)", color: "var(--text-primary, #0f172a)" }}>
       <h2 style={{ fontSize: 18, marginBottom: 10 }}>⚙️ Sistem & Relay Ayarları</h2>
       <p style={{ fontSize: 13, color: "var(--text-muted, #64748b)", marginBottom: 20 }}>
-        Relay tercihlerinizi NIP-65 standardına göre yapılandırın ve yerel klasör otomatik senkronizasyonunu yönetin.
+        Relay tercihlerinizi NIP-65 standardına göre yapılandırın, gizli not erişim alıcılarını tanımlayın ve yerel klasör otomatik senkronizasyonunu yönetin.
       </p>
 
       {status && (
@@ -150,6 +186,69 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           {status}
         </div>
       )}
+
+      {/* Gizli/Özel Not Alıcıları (Npub Adresleri) Bölümü */}
+      <div style={{ marginBottom: 24, padding: 14, background: "var(--bg-secondary, #f8fafc)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 6 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>🔒 Gizli Not Okuyucu Alıcıları (Npub Yönetimi)</div>
+        <p style={{ fontSize: 12, color: "var(--text-muted, #64748b)", marginBottom: 12 }}>
+          Gizli / özel notlarınızı (NIP-59 Gift Wrap) okuyabilmesini istediğiniz kişilerin <code>npub1...</code> adreslerini buraya ekleyin.
+          Gizli bir not kaydettiğinizde, bu listedeki her kişi için ayrı bir şifreli zarf oluşturulup yayınlanır.
+        </p>
+
+        {npubStatus && (
+          <div style={{ padding: "8px 10px", background: "var(--bg-primary, #fff)", fontSize: 12, borderRadius: 4, marginBottom: 10, border: "1px solid var(--input-border, #cbd5e1)" }}>
+            {npubStatus}
+          </div>
+        )}
+
+        <form onSubmit={handleAddNpub} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+          <input
+            type="text"
+            placeholder="npub1..."
+            value={newNpub}
+            onChange={(e) => setNewNpub(e.target.value)}
+            style={{ flex: 1, padding: 8, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary, #0f172a)", fontFamily: "monospace", fontSize: 13 }}
+          />
+          <button type="submit" style={{ padding: "8px 16px", background: "var(--accent-blue, #2563eb)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+            + Alıcı Ekle
+          </button>
+        </form>
+
+        {allowedNpubs.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted, #64748b)" }}>
+              İzin Verilen Alıcı Adresleri ({allowedNpubs.length}):
+            </div>
+            {allowedNpubs.map((npub) => {
+              const val = validateNpub(npub);
+              return (
+                <div key={npub} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-primary, #fff)", border: "1px solid var(--input-border, #e2e8f0)", borderRadius: 4 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}>{npub}</span>
+                    {val.hexPubkey && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted, #64748b)", fontFamily: "monospace" }}>
+                        Hex: {val.hexPubkey.slice(0, 16)}...{val.hexPubkey.slice(-8)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveNpub(npub)}
+                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
+                    title="Alıcıyı kaldır"
+                  >
+                    ❌
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: "var(--text-muted, #64748b)", fontStyle: "italic" }}>
+            Henüz eklenmiş bir alıcı npub adresi yok. Gizli notlar sadece sizin tarafınızdan okunabilir.
+          </div>
+        )}
+      </div>
 
       {/* Yerel Klasör Senkronizasyon (Local File Sync) Bölümü */}
       <div style={{ marginBottom: 24, padding: 14, background: "var(--bg-secondary, #f8fafc)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 6 }}>
