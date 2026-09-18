@@ -42,9 +42,29 @@ export const KeyLoginForm: React.FC<KeyLoginFormProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "40px auto", padding: 20, border: "1px solid #ccc", borderRadius: 8 }}>
+    <div style={{ maxWidth: 440, margin: "40px auto", padding: 20, border: "1px solid #ccc", borderRadius: 8 }}>
       <h3>{hasKey ? "Kilitli Kasayı Aç (NIP-49)" : "Yeni Anahtar Tanımla (NIP-49)"}</h3>
       {error && <p style={{ color: "red", fontSize: 13 }}>{error}</p>}
+
+      {!hasKey && (
+        <div style={{ padding: 10, background: "var(--bg-secondary, #f8fafc)", borderRadius: 6, border: "1px solid var(--input-border, #e2e8f0)", fontSize: 12, marginBottom: 4 }}>
+          <span style={{ fontWeight: 600 }}>💡 Nostr Hesabınız Yok mu?</span>
+          <p style={{ margin: "4px 0 8px 0", color: "#64748b", lineHeight: 1.4 }}>
+            Aşağıdaki web tabanlı Nostr istemcilerinden birini ziyaret ederek yeni bir <code>npub</code> / <code>nsec</code> anahtarı edinebilirsiniz:
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="https://nostrudel.ninja" target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Nostrudel
+            </a>
+            <a href="https://iris.to" target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Iris (iris.to)
+            </a>
+            <a href="https://snort.social" target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+              🔗 Snort (snort.social)
+            </a>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={hasKey ? handleUnlock : handleSetup} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {!hasKey && (
