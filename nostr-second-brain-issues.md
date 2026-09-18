@@ -244,3 +244,43 @@ Kullanıcı misafir modda not yazıp kaydediyor, sayfayı yeniliyor veya tarayı
 - [x] Misafir modda çalışırken kullanıcıya görünür bir uyarı gösteriliyor
 - [x] README bu davranışı açıkça belgeliyor
 - [x] (Opsiyonel) Ephemeral key'i kalıcı kasaya yükseltme akışı mevcut
+
+# [BUG / BUG-REPORT] Nostr Second Brain Projesindeki Hata, Tutarsızlık ve Eksiklikler
+
+## 1. Nostr Relays & NDK Bağlantı Yönetimi
+* **Konum:** `src/nostr.ts`
+* **Sorun:** Relay bağlantıları kurulurken (`ndk.connect()`) bağlantı kopması durumunda otomatik yeniden bağlanma (reconnection) veya zaman aşımı (timeout) mekanizması eksik.
+* **Etki:** Röle yanıt vermediğinde veya ağ kesintisinde uygulama sonsuz bekleme durumunda kalıyor ve kullanıcıya ağ durumu hatalı gösterilebiliyor.
+* **Öneri:** `NDK` başlatılırken explicit `connectTimeout` tanımlanmalı ve kesinti durumunda tetiklenecek retry/fallback mekanizması eklenmeli.
+
+## 2. NIP-54 Wikilink Ayrıştırma (Parser) Uyumsuzluğu
+* **Konum:** `src/utils/wikilink.ts` ve `src/components/WikiContent.tsx`
+* **Sorun:** Regex tabanlı `[[Link]]` ayrıştırma işlemi özel karakter içeren (örneğin Türkçe karakterler `ğ, ü, ş, ı, ö, ç` veya boşluk/özel imler) başlıkları işlerken URL slug dönüşümünde tutarsızlık yaşıyor.
+* **Etki:** Farklı dillerde yazılmış veya özel simge içeren başlıklar üzerinden grafik görünümüne (`SimpleGraphView.tsx`) geçildiğinde düğümler (nodes) eşleşmiyor ve kırık bağlantı oluşuyor.
+* **Öneri:** Wikilink normalize edici (`slugify`) yardımcı fonksiyonu Unicode duyarlı hale getirilmeli (`String.prototype.normalize('NFC')`).
+
+## 3. Anahtar Saklama Güvenliği (Key Store)
+* **Konum:** `src/utils/keyStore.ts`
+* **Sorun:** Gizli anahtar (`nsec` veya hex private key) `localStorage` üzerinde düz metin (plain text) olarak saklanıyor veya bellekten silinirken silme işlemi güvenli wiping yapılmadan yürütülüyor.
+* **Etki:** XSS zafiyeti oluşması durumunda kullanıcının tüm Nostr kimliği riske giriyor.
+* **Öneri:** Tarayıcı tarafında NIP-07 uzantıları (nos2x, Alby vb.) öncelikli hale getirilmeli; yerel depolama kullanılacaksa Web Crypto API ile şifrelenmeli veya bellekte güvenli oturum bazlı saklanmalıdır.
+
+## 4. IndexedDB ve Çevrimdışı (Offline) Senkronizasyon Tutarsızlığı
+* **Konum:** `src/utils/fileSync.ts`
+* **Sorun:** Çevrimdışıyken oluşturulan veya güncellenen notların sürüm geçmişi (`VersionHistoryModal.tsx`) ile ağa yeniden bağlanıldığında röleye gönderilen versiyon damgaları (`created_at`) çakışabiliyor.
+* **Etki:** Çevrimdışı yapılan güncellemeler röleye push edilirken en son röle durumuyla çakıştığında veri kaybına veya çifte kayıtlara yol açıyor.
+* **Öneri:** LWW (Last-Write-Wins) veya CRDT tabanlı belirleyici bir çakışma çözme (conflict resolution) mantığı eklenmeli.
+
+## 5. Dockerfile ve CI/CD Dağıtım Eksiklikleri
+* **Konum:** `Dockerfile`, `docker-compose.yml`, `.github/workflows/deploy-ghcr.yml`
+* **Sorun:** 
+  1. `Dockerfile` içerisinde multi-stage build adımlarında önbellekleme (layer caching) tam optimize edilmemiş.
+  2. `docker-compose.yml` içinde embedded `strfry` konfigürasyon dosyasına (`strfry.conf`) erişim izinleri yetersiz tanımlanmış.
+* **Etki:** GHCR CI pipeline derleme süresi uzuyor ve container başlatılırken yetki/dosya okuma hatası alınabiliyor.
+* **Öneri:** `package.json` ve `package-lock.json` dosyalarını kaynak koddan önce kopyalayarak Docker layer cache kullanımı sağlanmalı; `strfry` birim izinleri güncellenmeli.
+
+## 6. TypeScript Tip Tanımlamaları ve Test Kapsamı
+* **Konum:** `src/utils/graphBuilder.ts`, `src/utils/unwrap.ts`
+* **Sorun:** Bazı Nostr event `tags` dizileri işlenirken strict type check eksikliği yüzünden `undefined` veya `null` değerler runtime sırasında hataya sebebiyet veriyor.
+* **Etki:** Malformed (bozuk) NIP-54 event'leri alındığında grafik oluşturucu crash oluyor.
+* **Öneri:** Tag parse işlemlerine defensive null-check guards eklenmeli ve `graphBuilder.test.ts` test senaryolarına bozuk event girdileri eklenerek kapsayıcılık artırılmalı.
