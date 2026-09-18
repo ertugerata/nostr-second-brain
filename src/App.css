@@ -810,6 +810,7 @@ body {
 .settings-container {
   flex: 1;
   overflow-y: auto;
+  padding: 20px;
   box-sizing: border-box;
 }
 

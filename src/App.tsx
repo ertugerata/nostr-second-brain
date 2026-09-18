@@ -606,24 +606,7 @@ export function App() {
       {/* Sol Menü / Sidebar */}
       <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">
-          <h2>🧠 Nostr Brain</h2>
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <input
-              type="file"
-              accept=".md,.markdown,.txt"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              style={{ display: "none" }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="import-btn"
-              title="Bilgisayardan .md dosyası seç"
-            >
-              📂 MD Yükle
-            </button>
-            <button onClick={handleNewNote} className="new-btn">+ Yeni Not</button>
-          </div>
+          <h2>📋 Not Listesi</h2>
         </div>
 
         <div className="nav-tabs">
@@ -817,7 +800,7 @@ export function App() {
         )}
 
         <header className="top-bar">
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="sidebar-toggle-btn"
@@ -825,6 +808,27 @@ export function App() {
             >
               {sidebarCollapsed ? "▶ Sidebar" : "◀ Sidebar"}
             </button>
+
+            <h1 className="app-title" style={{ fontSize: "16px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center" }}>
+              🧠 Nostr Brain
+            </h1>
+
+            <input
+              type="file"
+              accept=".md,.markdown,.txt"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: "none" }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="import-btn"
+              title="Bilgisayardan .md dosyası seç"
+            >
+              📂 MD Yükle
+            </button>
+            <button onClick={handleNewNote} className="new-btn">+ Yeni Not</button>
+
             <RelayStatusIndicator ready={ready} />
             <span className="status-badge">{statusText}</span>
           </div>
@@ -1018,11 +1022,13 @@ export function App() {
         )}
 
         {activeTab === "settings" && (
-          <SettingsView
-            onKeyUpdated={() => {
-              setIsAuthenticated(true);
-            }}
-          />
+          <div className="settings-container">
+            <SettingsView
+              onKeyUpdated={() => {
+                setIsAuthenticated(true);
+              }}
+            />
+          </div>
         )}
       </main>
 
