@@ -244,3 +244,26 @@ Kullanıcı misafir modda not yazıp kaydediyor, sayfayı yeniliyor veya tarayı
 - [x] Misafir modda çalışırken kullanıcıya görünür bir uyarı gösteriliyor
 - [x] README bu davranışı açıkça belgeliyor
 - [x] (Opsiyonel) Ephemeral key'i kalıcı kasaya yükseltme akışı mevcut
+
+---
+
+## Issue 12: [BUG][PRIVACY][CRITICAL] Gizli (Gift Wrap) notlarda NIP-09 silme işlemi relay tarafından geçersiz — "silinen" not aslında relay'lerde kalıcı olarak duruyor
+
+**Labels:** `bug`, `privacy`, `security`, `priority:critical`
+
+### Açıklama
+Bir not "🔒 Gizli Not" olarak kaydedildiğinde `src/utils/crypto.ts` → `createGiftWrap()`, `kind: 1059` zarfını kullanıcının gerçek anahtarıyla değil, her kayıtta yeni üretilen ve hiçbir yerde saklanmayan bir ephemeral (geçici) anahtarla imzalıyor.
+
+Kullanıcı bu notu daha sonra silmek istediğinde `src/App.tsx` → `handleDeleteNote`, `src/nostr.ts` → `deleteEvent()` üzerinden bir NIP-09 (`kind: 5`) silme isteğini kullanıcının gerçek signer'ıyla imzalayıp yayınlıyor. NIP-09 spesifikasyonuna göre relay'ler bir silme isteğini yalnızca imzalayan pubkey, hedef event'in pubkey'iyle aynıysa kabul eder. Gizli notlarda hedef event'in (`kind: 1059`) pubkey alanı ephemeral bir anahtara ait olduğundan, kullanıcının gerçek anahtarıyla gönderdiği silme isteği bu koşulu hiçbir zaman sağlamaz ve uyumlu relay'ler tarafından görmezden gelinir/reddedilir.
+
+Ayrıca yerel disk senkronizasyonu açıkken gizli notların şifrelenmemiş düz metin içeriği yerel diske otomatik yazılıyordu.
+
+### Önerilen Çözüm
+- Silme akışını gizli notlar için farklı ele alın: UI ve onay diyaloglarında gizli notların NIP-59 tasarımı nedeniyle relay'lerden NIP-09 ile silinemeyeceğini, silme işleminin yalnızca yerel görünümü güncelleyeceğini açıkça belirtin.
+- Yerel disk senkronizasyonunda gizli notların diske yazılmasını varsayılan olarak kapalı (opt-in) hale getirin ve kullanıcıya açık gizlilik uyarısı ekleyin.
+- README dokümantasyonunu güncelleyin.
+
+### Kabul Kriterleri
+- [x] Gizli not silindiğinde kullanıcıya, relay'lerdeki kopyaların gerçekten silinip silinemeyeceği doğru şekilde bildiriliyor (yanıltıcı "silindi" mesajı yok)
+- [x] README ve/veya UI, Gift Wrap notların NIP-09 ile silinemeyeceğini net bir şekilde belgeliyor
+- [x] Yerel disk senkronizasyonu, gizli notları yazmadan önce kullanıcıyı bilgilendiriyor veya bu davranış opt-in hale getiriliyor
