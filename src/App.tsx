@@ -17,6 +17,7 @@ import { getDefaultSampleNote } from "./utils/sampleNote";
 import { LocalFileSyncService } from "./utils/fileSync";
 import { createGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
+import { getAllowedRecipientPubkeys } from "./utils/recipientStore";
 import "./App.css";
 
 export function App() {
@@ -285,23 +286,34 @@ export function App() {
       let savedItem: NoteItem;
 
       if (isPrivate && userSecretKey) {
-        const giftWrapRaw = createGiftWrap(content, userSecretKey, tags);
-        const event = new NDKEvent(nostrService.ndk, giftWrapRaw);
+        const recipientPubkeys = getAllowedRecipientPubkeys();
+        const targetPubkeys = Array.from(new Set([userPubkey, ...recipientPubkeys].filter(Boolean)));
 
-        if (nostrService.ndk.cacheAdapter) {
-          await nostrService.ndk.cacheAdapter.setEvent(event, []);
+        let primaryAuthorEventId = "";
+
+        for (const targetPk of targetPubkeys) {
+          const giftWrapRaw = createGiftWrap(content, userSecretKey, tags, targetPk);
+          const event = new NDKEvent(nostrService.ndk, giftWrapRaw);
+
+          if (nostrService.ndk.cacheAdapter) {
+            await nostrService.ndk.cacheAdapter.setEvent(event, []);
+          }
+
+          if (targetPk === userPubkey) {
+            primaryAuthorEventId = event.id;
+          }
+
+          event.publish().catch((err) => console.warn(`Relay yayın hatası (${targetPk.slice(0, 8)}...):`, err));
         }
 
         savedItem = {
-          id: event.id,
+          id: primaryAuthorEventId || `private-${Date.now()}`,
           slug: noteSlug,
           content,
           createdAt: Math.floor(Date.now() / 1000),
           pubkey: userPubkey,
           isPrivate: true,
         };
-
-        await event.publish();
       } else {
         const event = new NDKEvent(nostrService.ndk);
         event.kind = 30818;
@@ -341,7 +353,16 @@ export function App() {
       // Otomatik yerel disk senkronizasyonu
       await LocalFileSyncService.saveNoteToLocalDisk(noteSlug, savedItem.content, savedItem.pubkey, savedItem.createdAt);
 
-      setStatusText(isPrivate ? "Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!" : "Not başarıyla kaydedildi!");
+      if (isPrivate) {
+        const recipientCount = getAllowedRecipientPubkeys().length;
+        if (recipientCount > 0) {
+          setStatusText(`Gizli not (NIP-59 Gift Wrap) siz ve ${recipientCount} alıcı için başarıyla şifrelendi ve kaydedildi!`);
+        } else {
+          setStatusText("Gizli not (NIP-59 Gift Wrap) başarıyla şifrelendi ve kaydedildi!");
+        }
+      } else {
+        setStatusText("Not başarıyla kaydedildi!");
+      }
     } catch (error) {
       console.error("Kaydetme hatası:", error);
       setStatusText("Hata oluştu!");
