@@ -13,7 +13,19 @@
 - 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View (`react-force-graph`):** Notlar arasındaki bağlantılar otomatik ayrıştırılarak sürükleyip bırakılabilir, yakınlaştırılabilir, 2D ve 3D modları arasında geçiş yapılabilir interaktif ağ haritası oluşturulur.
 - 🎯 **Akıllı Ağ Filtreleme (Kendi İmzaladığınız Notlar Öncelikli):** Relay'lerde çok sayıda nokta ve kalabalık olduğunda varsayılan olarak yalnızca sizin imzaladığınız notlar ve bunlarla ilişkili doğrudan bağlantılar gösterilir. İstenildiğinde tek tıkla tüm ağ görüntülenebilir.
 - 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec`), NIP-49 standardı kullanılarak kullanıcı parolasıyla şifrelenir (`ncryptsec`) ve sadece yerel depolamada saklanır. Ayrıca NIP-07 destekli eklentiler (Alby, nos2x vb.) veya misafir modunda geçici (ephemeral) key kullanımı desteklenir.
-- 🕵️ **Gizli Notlar (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir.
+- 🕵️ **Gizli Notlar & Npub Alıcı Yönetimi (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (kind: 1059) zarfına sarılarak relay'lere güvenle iletilir. Ayarlar bölümünden ekleyeceğiniz `npub` adreslerine sahip alıcılar için ayrı şifreli zarflar oluşturularak belirlediğiniz kişilerin de gizli notlarınızı okuyabilmesi sağlanır.
+
+---
+
+## 🔒 Gizli Not Alıcı Yönetimi (Npub Okuyucu Listesi)
+
+Nostr Second Brain, NIP-59 Gift Wrap mimarisi ile gizli/özel notlarınızı sadece kendinize değil, belirlediğiniz arkadaşlarınız veya ekip üyelerinizle de güvenli şekilde paylaşmanıza olanak tanır.
+
+### Nasıl Kullanılır?
+1. **Npub Ekleme:** **Ayarlar (⚙️)** bölümüne gidin. **"🔒 Gizli Not Okuyucu Alıcıları (Npub Yönetimi)"** alanındaki metin kutusuna erişim vermek istediğiniz kişinin `npub1...` adresini girin ve **"+ Alıcı Ekle"** butonuna tıklayın.
+2. **Npub Doğrulama ve Depolama:** Girilen npub adresi format ve Bech32 doğrulamalarından geçirilir. Doğrulanan alıcılar listede görünür ve istenildiğinde ❌ butonu ile silinebilir.
+3. **Çoklu Alıcı Şifreleme (Multi-Recipient Gift Wrap):** Düzenleyicide **"🔒 NIP-44/59 Gizli Not (Gift Wrap)"** seçeneği işaretlenip not kaydedildiğinde, uygulama hem sizin için hem de Ayarlar'da ekli tüm alıcı npub adresleri için ayrı ayrı şifrelenmiş NIP-59 Gift Wrap zarfları (kind: 1059) oluşturup relay'lere yayınlar.
+4. **Güvenli Erişim:** İlgili `npub` adresinin sahibi kendi Nostr anahtarlarıyla uygulamaya giriş yaptığında şifreli zarfı çözer ve gizli not içeriğini okuyabilir. Üçüncü şahıslar veya relay sunucuları içeriği kesinlikle göremez.
 
 ---
 
@@ -78,7 +90,7 @@ Not yazarken veya düzenlerken metin içerisinde iki köşeli parantez `[[...]]`
 | **NIP-54** | Wiki Articles | `kind: 30818` (Addressable Event) ile [[wikilink]] not yapısı |
 | **NIP-49** | Private Key Encryption | `nsec` anahtarını parola ile `ncryptsec` formatında şifreleyerek güvenli yerel depolama |
 | **NIP-44** | Encrypted Payloads | Not içeriğini ve seal paketlerini uçtan uca şifreleme |
-| **NIP-59** | Gift Wrap | Ephemeral key ile gizli notları (Rumor -> Seal -> Gift Wrap) zarflama |
+| **NIP-59** | Gift Wrap | Ephemeral key ile gizli notları (Rumor -> Seal -> Gift Wrap) alıcılar için zarflama |
 | **NIP-07** | Browser Extension Signer | `window.nostr` üzerinden tarayıcı eklentisi ile güvenli imzalama |
 
 ---
@@ -96,7 +108,7 @@ nostr-second-brain/
 │   │   ├── KeyLoginForm.tsx # NIP-49 Parola ile giriş ve anahtar kasası formu
 │   │   ├── MarkdownToolbar.tsx # Editör formatlama araç çubuğu
 │   │   ├── RelayStatusIndicator.tsx # Bağlı relay durumu ve canlı istatistik göstergesi
-│   │   ├── SettingsView.tsx # NIP-49 Anahtar kasası ve Relay yönetim ekranı
+│   │   ├── SettingsView.tsx # NIP-49 Kasa, Relay ve Npub alıcı yönetim ekranı
 │   │   ├── SimpleGraphView.tsx # react-force-graph ile Obsidian tarzı 2D/3D interaktif ağ haritası
 │   │   ├── VersionHistoryModal.tsx # Not versiyon geçmişi ve geri yükleme penceresi
 │   │   └── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
@@ -106,6 +118,7 @@ nostr-second-brain/
 │       ├── fileSync.ts      # Browser File System Access API ile yerel .md klasör senkronizasyonu
 │       ├── graphBuilder.ts  # Not haritası ve bağlantı (Nodes/Links) oluşturucu
 │       ├── keyStore.ts      # NIP-49 (ncryptsec) şifreleme ve parola doğrulama yönetimi
+│       ├── recipientStore.ts # Npub adres doğrulama, saklama ve alıcı pubkey yönetimi
 │       ├── sampleNote.ts    # Varsayılan başlangıç notu içeriği
 │       ├── unwrap.ts        # Gift Wrap (Kind 1059) ve Seal (Kind 13) zarf açma ve doğrulama fonksiyonları
 │       └── wikilink.ts      # NIP-54 Regex, Türkçe uyumlu slugify ve bağlantı ayrıştırıcı
@@ -155,7 +168,7 @@ Uygulama 3 farklı kimlik doğrulama yöntemini destekler:
                  Seal (k:13)
                      │
                      ▼ (Ephemeral Key + Fake Timestamp + NIP-44)
-                 Gift Wrap (k:1059) ──> [Relay] (Dışarıdan sadece rastgele key ve k:1059 görünür)
+                 Gift Wrap (k:1059) ──> [Relay] (Yazar ve Ayarlar'da tanımlı Npub alıcılarının her biri için ayrı zarf yayınlanır)
 ```
 
 ---
