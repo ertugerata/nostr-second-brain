@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+import { nip19 } from "nostr-tools";
 import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
 import { MarkdownToolbar } from "./components/MarkdownToolbar";
@@ -53,6 +54,7 @@ export function App() {
   const [statusText, setStatusText] = useState("Sistem hazır.");
   const [currentUserPubkey, setCurrentUserPubkey] = useState<string>("");
   const [filterMode, setFilterMode] = useState<"all" | "mine" | "others">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "split">("edit");
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -638,6 +640,27 @@ export function App() {
             )}
           </div>
 
+          <div style={{ padding: "0 4px 6px 4px" }}>
+            <input
+              type="text"
+              placeholder="Ara: Başlık, içerik, npub..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="sidebar-search-input"
+              style={{
+                width: "100%",
+                padding: "6px 10px",
+                fontSize: "12px",
+                borderRadius: "6px",
+                border: "1px solid var(--input-border)",
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
           <div className="note-filter-bar">
             <button
               className={`filter-btn ${filterMode === "all" ? "active" : ""}`}
@@ -662,16 +685,57 @@ export function App() {
           {Array.from(notes.values())
             .filter((note) => {
               if (filterMode === "mine") {
-                return note.pubkey && note.pubkey === currentUserPubkey;
+                if (!note.pubkey || note.pubkey !== currentUserPubkey) return false;
               }
               if (filterMode === "others") {
-                return !note.pubkey || note.pubkey !== currentUserPubkey;
+                if (note.pubkey && note.pubkey === currentUserPubkey) return false;
               }
+
+              if (searchQuery.trim()) {
+                const query = searchQuery.trim().toLowerCase();
+                let searchHexPubkey: string | null = null;
+                if (query.startsWith("npub1")) {
+                  try {
+                    const decoded = nip19.decode(query);
+                    if (decoded.type === "npub" && typeof decoded.data === "string") {
+                      searchHexPubkey = decoded.data;
+                    }
+                  } catch (e) {
+                    // ignore invalid npub while typing
+                  }
+                }
+
+                const matchSlug = note.slug.toLowerCase().includes(query);
+                const matchContent = note.content.toLowerCase().includes(query);
+                const matchPubkey = note.pubkey ? note.pubkey.toLowerCase().includes(query) : false;
+                const matchHex = searchHexPubkey && note.pubkey ? note.pubkey === searchHexPubkey : false;
+
+                let matchNpub = false;
+                if (note.pubkey && note.pubkey.length === 64) {
+                  try {
+                    matchNpub = nip19.npubEncode(note.pubkey).toLowerCase().includes(query);
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+
+                return matchSlug || matchContent || matchPubkey || matchHex || matchNpub;
+              }
+
               return true;
             })
             .sort((a, b) => b.createdAt - a.createdAt)
             .map((note) => {
               const isMine = note.pubkey && note.pubkey === currentUserPubkey;
+              let authorNpub = "";
+              if (note.pubkey && note.pubkey.length === 64) {
+                try {
+                  authorNpub = nip19.npubEncode(note.pubkey);
+                } catch (e) {
+                  authorNpub = note.pubkey;
+                }
+              }
+
               return (
                 <div
                   key={note.id}
@@ -707,8 +771,11 @@ export function App() {
                         </button>
                       </div>
                     ) : (
-                      <span className="author-badge other-badge" title={`Yazar: ${note.pubkey ? note.pubkey.slice(0, 10) + "..." : "Bilinmiyor"}`}>
-                        🌐 Relay
+                      <span
+                        className="author-badge other-badge"
+                        title={`Yazar: ${authorNpub || note.pubkey || "Bilinmiyor"}`}
+                      >
+                        🌐 {authorNpub ? `${authorNpub.slice(0, 8)}...` : "Relay"}
                       </span>
                     )}
                   </div>
