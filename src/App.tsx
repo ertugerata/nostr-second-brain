@@ -987,7 +987,12 @@ export function App() {
               <div className={`editor-body-area ${previewMode === "split" ? "is-split" : ""}`}>
                 {(previewMode === "edit" || previewMode === "split") && (
                   <div className="editor-input-wrapper">
-                    <MarkdownToolbar textareaRef={textareaRef} setContent={setContent} />
+                    <MarkdownToolbar
+                      textareaRef={textareaRef}
+                      setContent={setContent}
+                      isPrivate={isPrivate}
+                      userSecretKey={nostrService.getSecretKey()}
+                    />
                     <textarea
                       ref={textareaRef}
                       placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
