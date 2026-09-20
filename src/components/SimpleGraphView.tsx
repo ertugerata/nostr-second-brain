@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import ForceGraph2D from "react-force-graph-2d";
 import ForceGraph3D from "react-force-graph-3d";
 import * as THREE from "three";
+import { nip19 } from "nostr-tools";
 import { GraphData, GraphNode, GraphLink } from "../utils/graphBuilder";
 
 export type GraphFilterScope = "mine_and_neighbors" | "mine_only" | "all";
@@ -19,7 +20,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
   theme = "light",
 }) => {
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
-  const [filterScope, setFilterScope] = useState<GraphFilterScope>("mine_and_neighbors");
+  const [filterScope, setFilterScope] = useState<GraphFilterScope>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -135,10 +136,37 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
   // Search filter matching
   const matchingNodeIds = useMemo(() => {
     if (!searchQuery.trim()) return undefined;
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
+
+    let searchHexPubkey: string | null = null;
+    if (query.startsWith("npub1")) {
+      try {
+        const decoded = nip19.decode(query);
+        if (decoded.type === "npub" && typeof decoded.data === "string") {
+          searchHexPubkey = decoded.data;
+        }
+      } catch (e) {
+        // ignore invalid npub while typing
+      }
+    }
+
     const matches = new Set<string>();
     preparedData.nodes.forEach((n) => {
-      if (n.title.toLowerCase().includes(query) || n.id.toLowerCase().includes(query)) {
+      const matchTitle = n.title.toLowerCase().includes(query);
+      const matchId = n.id.toLowerCase().includes(query);
+      const matchPubkey = n.pubkey ? n.pubkey.toLowerCase().includes(query) : false;
+      const matchHex = searchHexPubkey && n.pubkey ? n.pubkey === searchHexPubkey : false;
+
+      let matchNpub = false;
+      if (n.pubkey && n.pubkey.length === 64) {
+        try {
+          matchNpub = nip19.npubEncode(n.pubkey).toLowerCase().includes(query);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (matchTitle || matchId || matchPubkey || matchHex || matchNpub) {
         matches.add(n.id);
       }
     });
@@ -468,7 +496,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
 
           <input
             type="text"
-            placeholder="Ağda not ara..."
+            placeholder="Ağda not / npub ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -479,7 +507,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
               backgroundColor: colors.bg,
               color: colors.text,
               outline: "none",
-              width: 130,
+              width: 150,
             }}
           />
 
@@ -641,6 +669,19 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
               {activeNodeInfo.title}
             </div>
+
+            {activeNodeInfo.pubkey && (
+              <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4 }}>
+                👤 Yazar: {(() => {
+                  try {
+                    const npub = nip19.npubEncode(activeNodeInfo.pubkey);
+                    return `${npub.slice(0, 10)}...${npub.slice(-4)}`;
+                  } catch (e) {
+                    return `${activeNodeInfo.pubkey.slice(0, 10)}...`;
+                  }
+                })()}
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
               {activeNodeInfo.isMine ? (
