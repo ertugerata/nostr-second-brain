@@ -2,6 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { slugify } from "../utils/wikilink";
+import { AssetView } from "./AssetView";
 
 interface WikiContentProps {
   content: string;
@@ -54,11 +55,24 @@ export const WikiContent: React.FC<WikiContentProps> = ({ content, onNavigate })
                 </button>
               );
             }
+            // [📄 dosya.pdf](asset:<id>) gibi dosya referansları — yeni sekmede aç
+            if (href && href.startsWith("asset:")) {
+              const assetId = href.replace("asset:", "");
+              return <AssetView assetId={assetId} alt={typeof children === "string" ? children : ""} kind="file" />;
+            }
             return (
               <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
                 {children}
               </a>
             );
+          },
+          img({ src, alt }) {
+            // ![resim.jpg](asset:<id>) — görsel asset referansı
+            if (src && src.startsWith("asset:")) {
+              const assetId = src.replace("asset:", "");
+              return <AssetView assetId={assetId} alt={alt || ""} kind="image" />;
+            }
+            return <img src={src} alt={alt} style={{ maxWidth: "100%" }} />;
           },
         }}
       >
