@@ -72,4 +72,34 @@ describe("LocalFileSyncService Tests", () => {
     // Reset dirHandle
     (LocalFileSyncService as any).dirHandle = null;
   });
+
+  it("saveAssetToLocalDisk returns saved: false when no directory is selected", async () => {
+    expect(LocalFileSyncService.isDirectorySelected()).toBe(false);
+
+    const result = await LocalFileSyncService.saveAssetToLocalDisk(
+      "test.jpg",
+      new Uint8Array([1, 2, 3]),
+      "image/jpeg",
+      false
+    );
+
+    expect(result.saved).toBe(false);
+  });
+
+  it("saveAssetToLocalDisk returns skippedPrivate: true when isPrivate is true and syncPrivateNotes is false", async () => {
+    (LocalFileSyncService as any).dirHandle = {};
+    LocalFileSyncService.setSyncPrivateNotes(false);
+
+    const result = await LocalFileSyncService.saveAssetToLocalDisk(
+      "secret.jpg",
+      new Uint8Array([1, 2, 3]),
+      "image/jpeg",
+      true
+    );
+
+    expect(result.saved).toBe(false);
+    expect(result.skippedPrivate).toBe(true);
+
+    (LocalFileSyncService as any).dirHandle = null;
+  });
 });

@@ -6,6 +6,8 @@ export interface LocalSaveResult {
   error?: string;
 }
 
+import { toArrayBuffer } from "./crypto";
+
 export class LocalFileSyncService {
   private static dirHandle: FileSystemDirectoryHandle | null = null;
 
@@ -87,6 +89,39 @@ ${content}`;
       return { saved: true };
     } catch (err: any) {
       console.error("[Yerel Disk] Yazma hatası:", err);
+      return { saved: false, error: err?.message || String(err) };
+    }
+  }
+
+  /**
+   * Asset dosyasını yerel diskteki assets/ klasörüne kaydeder (Logseq stili)
+   */
+  public static async saveAssetToLocalDisk(
+    filename: string,
+    bytes: Uint8Array,
+    mime: string,
+    isPrivate: boolean = false
+  ): Promise<LocalSaveResult> {
+    if (!this.dirHandle) {
+      return { saved: false };
+    }
+
+    if (isPrivate && !this.isSyncPrivateNotesEnabled()) {
+      console.log(`[Yerel Disk] Gizli asset (${filename}) için yerel disk senkronizasyonu kapalı olduğundan pas geçildi.`);
+      return { saved: false, skippedPrivate: true };
+    }
+
+    try {
+      const assetsDirHandle = await this.dirHandle.getDirectoryHandle("assets", { create: true });
+      const fileHandle = await assetsDirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      const blob = new Blob([toArrayBuffer(bytes)], { type: mime });
+      await writable.write(blob);
+      await writable.close();
+      console.log(`[Yerel Disk] assets/${filename} dosyası başarıyla güncellendi.`);
+      return { saved: true };
+    } catch (err: any) {
+      console.error("[Yerel Disk] Asset yazma hatası:", err);
       return { saved: false, error: err?.message || String(err) };
     }
   }
