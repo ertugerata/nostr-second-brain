@@ -19,6 +19,7 @@ import { LocalFileSyncService } from "./utils/fileSync";
 import { createGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
 import { getAllowedRecipientPubkeys } from "./utils/recipientStore";
+import { ASSET_BLOB_KIND, ASSET_KEY_RUMOR_KIND } from "./utils/assets";
 import "./App.css";
 
 export function App() {
@@ -66,6 +67,8 @@ export function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleIncomingEvent = (event: NDKEvent) => {
+    if (event.kind === ASSET_BLOB_KIND) return;
+
     if (event.kind === 5) {
       const eTags = event.getMatchingTags("e").map((t) => t[1]);
       const aTags = event.getMatchingTags("a").map((t) => t[1]);
@@ -118,7 +121,7 @@ export function App() {
       const secretKey = nostrService.getSecretKey();
       if (!secretKey) return;
       const rumor = unwrapGift(event.rawEvent ? event.rawEvent() : event, secretKey);
-      if (!rumor) return;
+      if (!rumor || rumor.kind === ASSET_KEY_RUMOR_KIND) return;
       noteSlug = rumor.tags?.find((t: string[]) => t[0] === "d")?.[1] || "untitled";
       noteContent = rumor.content;
       eventPubkey = rumor.pubkey;
@@ -987,7 +990,12 @@ export function App() {
               <div className={`editor-body-area ${previewMode === "split" ? "is-split" : ""}`}>
                 {(previewMode === "edit" || previewMode === "split") && (
                   <div className="editor-input-wrapper">
-                    <MarkdownToolbar textareaRef={textareaRef} setContent={setContent} />
+                    <MarkdownToolbar
+                      textareaRef={textareaRef}
+                      setContent={setContent}
+                      isPrivate={isPrivate}
+                      userSecretKey={nostrService.getSecretKey()}
+                    />
                     <textarea
                       ref={textareaRef}
                       placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."

@@ -14,6 +14,7 @@ import {
 } from "./crypto";
 import { unwrapGift } from "./unwrap";
 import { getAllowedRecipientPubkeys } from "./recipientStore";
+import { LocalFileSyncService } from "./fileSync";
 
 // ---------------------------------------------------------------------------
 // Sabitler
@@ -190,6 +191,9 @@ export async function uploadAsset({ file, userSecretKey, isPrivate, filename }: 
 
     await cacheAssetLocally(assetId, mime, displayName, bytes);
   }
+
+  // Otomatik yerel disk senkronizasyonu (assets/ klasörüne Logseq stili)
+  await LocalFileSyncService.saveAssetToLocalDisk(displayName, bytes, mime, isPrivate);
 
   const markdownRef =
     mime === "application/pdf" ? `[📄 ${displayName}](asset:${assetId})` : `![${displayName}](asset:${assetId})`;
