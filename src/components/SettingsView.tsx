@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NDKEvent, NDKRelay } from "@nostr-dev-kit/ndk";
-import { nostrService } from "../nostr";
+import { nostrService, normalizeRelayUrl } from "../nostr";
 import { LocalFileSyncService } from "../utils/fileSync";
 import {
   getAllowedNpubs,
@@ -46,9 +46,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
   // Mevcut NDK, Stored Relay Havuzunu ve Npub Alıcı Listesini Yükle
   useEffect(() => {
-    const currentUrls = nostrService.getRelayUrls();
-    const activePool = Array.from(nostrService.ndk.pool.relays.values()).map((r: NDKRelay) => r.url);
-    const allUniqueUrls = Array.from(new Set([...currentUrls, ...activePool]));
+    const currentUrls = nostrService.getRelayUrls().map(normalizeRelayUrl);
+    const activePool = Array.from(nostrService.ndk.pool.relays.values()).map((r: NDKRelay) => normalizeRelayUrl(r.url));
+    const allUniqueUrls = Array.from(new Set([...currentUrls, ...activePool].filter(Boolean)));
 
     const initialRelays: RelayConfig[] = allUniqueUrls.map((url) => ({
       url,
@@ -133,8 +133,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
   // Tek Tıkla Yerel strfry (Docker / Private Relay) Ekleme
   const handleAddLocalRelay = async () => {
-    const localUrl = "ws://localhost:7777";
-    if (relays.some((r) => r.url === localUrl)) {
+    const localUrl = normalizeRelayUrl("ws://localhost:7777");
+    if (relays.some((r) => normalizeRelayUrl(r.url) === localUrl)) {
       setStatus("Yerel private relay (ws://localhost:7777) zaten listede mevcut.");
       return;
     }
@@ -148,20 +148,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     e.preventDefault();
     if (!newRelayUrl.trim()) return;
 
-    let formattedUrl = newRelayUrl.trim();
-    if (!formattedUrl.startsWith("ws://") && !formattedUrl.startsWith("wss://")) {
-      if (
-        formattedUrl.startsWith("localhost") ||
-        formattedUrl.startsWith("127.0.0.1") ||
-        formattedUrl.startsWith("0.0.0.0")
-      ) {
-        formattedUrl = `ws://${formattedUrl}`;
-      } else {
-        formattedUrl = `wss://${formattedUrl}`;
-      }
+    const formattedUrl = normalizeRelayUrl(newRelayUrl);
+    if (!formattedUrl) {
+      setStatus("Geçersiz relay adresi.");
+      return;
     }
 
-    if (relays.some((r) => r.url === formattedUrl)) {
+    if (relays.some((r) => normalizeRelayUrl(r.url) === formattedUrl)) {
       setStatus("Bu relay zaten listede ekli.");
       return;
     }
@@ -174,16 +167,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
   // Relay Silme
   const handleRemoveRelay = async (urlToRemove: string) => {
+    const targetNorm = normalizeRelayUrl(urlToRemove);
     await nostrService.removeRelay(urlToRemove);
-    setRelays(relays.filter((r) => r.url !== urlToRemove));
+    setRelays(relays.filter((r) => normalizeRelayUrl(r.url) !== targetNorm));
     setStatus(`Relay (${urlToRemove}) kaldırıldı.`);
   };
 
   // Read/Write Rol Değişimi
   const toggleRole = (url: string, role: "read" | "write") => {
+    const targetNorm = normalizeRelayUrl(url);
     setRelays(
       relays.map((r) => {
-        if (r.url === url) {
+        if (normalizeRelayUrl(r.url) === targetNorm) {
           return { ...r, [role]: !r[role] };
         }
         return r;
