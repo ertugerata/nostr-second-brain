@@ -101,6 +101,9 @@ Not yazarken veya düzenlerken metin içerisinde iki köşeli parantez `[[...]]`
 
 ```text
 nostr-second-brain/
+├── packages/                # Derlenen platform paketleri (.deb, .AppImage, .msi, .exe, .apk)
+├── scripts/
+│   └── copy-packages.mjs    # Derlenen paketleri packages/ dizinine kopyalama betiği
 ├── src/
 │   ├── main.tsx             # React giriş noktası
 │   ├── App.tsx              # Ana uygulama bileşeni (State, Offline Sync, Formlar)
@@ -175,9 +178,9 @@ Uygulama 3 farklı kimlik doğrulama yöntemini destekler:
 
 ---
 
-## 🖥️ Masaüstü Uygulaması (Tauri v2 - Linux & Windows)
+## 🖥️ Masaüstü ve Mobil Uygulaması (Tauri v2 - Linux, Windows & Android)
 
-Nostr Second Brain, **Tauri v2** altyapısı sayesinde **Linux** ve **Windows** işletim sistemlerinde yerel (native) bir masaüstü uygulaması olarak çalıştırılabilir.
+Nostr Second Brain, **Tauri v2** altyapısı sayesinde **Linux**, **Windows** ve **Android** platformlarında yerel (native) bir uygulama olarak derlenebilir ve çalıştırılabilir.
 
 ### 🚀 Geliştirme Modunda Çalıştırma
 
@@ -187,17 +190,37 @@ Masaüstü uygulamasını geliştirme ortamında çalıştırmak için:
 npm run tauri:dev
 ```
 
-### 📦 Masaüstü Paketlerini Derleme (Production Build)
+### 📦 Masaüstü ve Mobil Paketlerini Derleme (Production Build)
 
-Uygulamanın çalıştırılabilir masaüstü dosyalarını ve paketleyicilerini derlemek için:
+Uygulamanın çalıştırılabilir masaüstü ve mobil paketlerini derlemek için:
 
+#### 1. Masaüstü Derleme (Linux & Windows)
 ```bash
 npm run tauri:build
 ```
-
 Derleme tamamlandığında paketler `src-tauri/target/release/bundle/` dizininde üretilir:
-- **Linux:** `.deb`, `.rpm`, `.AppImage`
+- **Linux:** `.deb`, `.AppImage`
 - **Windows:** `.msi`, `.exe` (NSIS Installer)
+
+#### 2. Android APK Derleme
+```bash
+npm run tauri:android:init
+npm run tauri:android:build
+```
+Derleme tamamlandığında `.apk` paketleri üretilir.
+
+#### 3. Paketleri `packages/` Dizinine Toplama
+Tüm platformlar için üretilen paketleri kök dizindeki `packages/` klasörü altına toplamak için:
+```bash
+npm run package:copy
+```
+
+`packages/` klasörü şu çıktıları barındırır:
+- `*.deb` (Debian/Ubuntu)
+- `*.AppImage` (Linux Portable)
+- `*.msi` (Windows Installer)
+- `*.exe` (Windows NSIS Setup)
+- `*.apk` (Android Paket)
 
 ### 🐧 Linux Derleme Ön Koşulları
 Linux üzerinde yerel derleme yapmak için aşağıdaki sistem kütüphanelerinin yüklü olması gereklidir:
@@ -207,7 +230,7 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicat
 ```
 
 ### ⚙️ Otomatik Çoklu-Platform CI/CD (GitHub Actions)
-Repository içerisinde yer alan `.github/workflows/tauri-build.yml` iş akışı sayesinde, projenize her push veya tag gönderildiğinde Linux ve Windows kurulum paketleri otomatik olarak derlenir ve GitHub Releases / Artifacts üzerinde yayınlanır.
+Repository içerisinde yer alan `.github/workflows/tauri-build.yml` iş akışı sayesinde, projenize her push veya tag gönderildiğinde Linux, Windows ve Android kurulum paketleri (`.deb`, `.AppImage`, `.msi`, `.exe`, `.apk`) otomatik olarak derlenir, `packages/` altında toplanır ve GitHub Releases / Artifacts üzerinde yayınlanır.
 
 ---
 
