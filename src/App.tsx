@@ -32,8 +32,20 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
-    return (localStorage.getItem("theme") as "light" | "dark") || "light";
+    return (localStorage.getItem("theme") as "light" | "dark") || "dark";
   });
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Main active notes map (slug -> latest NoteItem)
   const [notes, setNotes] = useState<Map<string, NoteItem>>(() => {
@@ -608,24 +620,56 @@ export function App() {
 
   return (
     <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      {/* Hidden file input for uploading markdown */}
+      <input
+        type="file"
+        accept=".md,.markdown,.txt"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        style={{ display: "none" }}
+      />
+
       {/* Sol Menü / Sidebar */}
       <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">
-          <h2>📋 Not Listesi</h2>
+          <div className="sidebar-brand">
+            <button
+              type="button"
+              className="hamburger-btn"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              title="Menüyü Kapat"
+            >
+              ☰
+            </button>
+            <span className="sidebar-title">🧠 Nostr Brain</span>
+          </div>
         </div>
 
-        <div className="nav-tabs">
+        {/* Action buttons under hamburger menu */}
+        <div className="sidebar-actions">
           <button
-            className={`tab-btn ${activeTab === "editor" ? "active" : ""}`}
-            onClick={() => setActiveTab("editor")}
+            onClick={() => {
+              handleNewNote();
+              setActiveTab("editor");
+            }}
+            className="sidebar-action-btn primary"
+            title="Yeni Not Oluştur"
           >
-            📝 Editör
+            ➕ Yeni Not
           </button>
           <button
-            className={`tab-btn ${activeTab === "graph" ? "active" : ""}`}
-            onClick={() => setActiveTab("graph")}
+            onClick={() => fileInputRef.current?.click()}
+            className="sidebar-action-btn"
+            title="Bilgisayardan .md dosyası seç"
           >
-            🕸️ Graph
+            📂 MD Yükle
+          </button>
+          <button
+            onClick={() => setActiveTab("graph")}
+            className={`sidebar-action-btn ${activeTab === "graph" ? "active" : ""}`}
+            title="Grafik Görünümüne Geç"
+          >
+            🕸️ Grafikler
           </button>
         </div>
 
@@ -819,15 +863,6 @@ export function App() {
           )}
         </div>
 
-        {/* Sidebar Alt Bölüm / Settings Button */}
-        <div className="sidebar-footer">
-          <button
-            className={`sidebar-settings-btn ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            ⚙️ Ayarlar
-          </button>
-        </div>
       </aside>
 
       {/* Ana Çalışma Alanı */}
@@ -871,56 +906,68 @@ export function App() {
 
         <header className="top-bar">
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="sidebar-toggle-btn"
-              title={sidebarCollapsed ? "Menüyü Göster" : "Menüyü Gizle"}
-            >
-              {sidebarCollapsed ? "▶ Sidebar" : "◀ Sidebar"}
-            </button>
+            {sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="hamburger-btn top-bar-hamburger"
+                title="Menüyü Aç"
+              >
+                ☰
+              </button>
+            )}
 
-            <h1 className="app-title" style={{ fontSize: "16px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center" }}>
-              🧠 Nostr Brain
+            <h1 className="app-title" style={{ fontSize: "15px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center" }}>
+              {activeTab === "editor" ? (slug || "Not Editörü") : activeTab === "graph" ? "Grafik Görünümü" : "Ayarlar"}
             </h1>
-
-            <input
-              type="file"
-              accept=".md,.markdown,.txt"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              style={{ display: "none" }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="import-btn"
-              title="Bilgisayardan .md dosyası seç"
-            >
-              📂 MD Yükle
-            </button>
-            <button onClick={handleNewNote} className="new-btn">+ Yeni Not</button>
 
             <RelayStatusIndicator ready={ready} />
             <span className="status-badge">{statusText}</span>
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <button
-              onClick={toggleTheme}
-              className="theme-toggle-btn"
-              title="Koyu / Açık Tema Değiştir"
-            >
-              {theme === "light" ? "🌙 Dark" : "☀️ Light"}
-            </button>
-            {KeyStoreService.hasStoredKey() && (
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }} ref={moreMenuRef}>
+            <div className="more-menu-container">
               <button
-                onClick={() => {
-                  KeyStoreService.clearStoredKey();
-                  setIsAuthenticated(false);
-                }}
-                className="logout-btn"
+                className="more-menu-btn"
+                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                title="Daha Fazla Seçenek (...)"
               >
-                🔒 Kasayı Kilitle
+                •••
               </button>
-            )}
+              {moreMenuOpen && (
+                <div className="more-menu-dropdown">
+                  <button
+                    className={`dropdown-item ${activeTab === "settings" ? "active" : ""}`}
+                    onClick={() => {
+                      setActiveTab("settings");
+                      setMoreMenuOpen(false);
+                    }}
+                  >
+                    ⚙️ Ayarlar
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      toggleTheme();
+                      setMoreMenuOpen(false);
+                    }}
+                  >
+                    {theme === "light" ? "🌙 Dark Mod" : "☀️ Light Mod"}
+                  </button>
+                  {KeyStoreService.hasStoredKey() && (
+                    <button
+                      className="dropdown-item danger"
+                      onClick={() => {
+                        KeyStoreService.clearStoredKey();
+                        setIsAuthenticated(false);
+                        setMoreMenuOpen(false);
+                      }}
+                    >
+                      🔒 Kasayı Kilitle
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
