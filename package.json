@@ -11,7 +11,11 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:android": "tauri android",
+    "tauri:android:init": "tauri android init --ci",
+    "tauri:android:build": "tauri android build --apk",
+    "package:copy": "node scripts/copy-packages.mjs"
   },
   "dependencies": {
     "@nostr-dev-kit/ndk": "2.15.2",
