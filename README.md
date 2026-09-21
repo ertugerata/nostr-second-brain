@@ -175,6 +175,42 @@ Uygulama 3 farklı kimlik doğrulama yöntemini destekler:
 
 ---
 
+## 🖥️ Masaüstü Uygulaması (Tauri v2 - Linux & Windows)
+
+Nostr Second Brain, **Tauri v2** altyapısı sayesinde **Linux** ve **Windows** işletim sistemlerinde yerel (native) bir masaüstü uygulaması olarak çalıştırılabilir.
+
+### 🚀 Geliştirme Modunda Çalıştırma
+
+Masaüstü uygulamasını geliştirme ortamında çalıştırmak için:
+
+```bash
+npm run tauri:dev
+```
+
+### 📦 Masaüstü Paketlerini Derleme (Production Build)
+
+Uygulamanın çalıştırılabilir masaüstü dosyalarını ve paketleyicilerini derlemek için:
+
+```bash
+npm run tauri:build
+```
+
+Derleme tamamlandığında paketler `src-tauri/target/release/bundle/` dizininde üretilir:
+- **Linux:** `.deb`, `.rpm`, `.AppImage`
+- **Windows:** `.msi`, `.exe` (NSIS Installer)
+
+### 🐧 Linux Derleme Ön Koşulları
+Linux üzerinde yerel derleme yapmak için aşağıdaki sistem kütüphanelerinin yüklü olması gereklidir:
+```bash
+sudo apt-get update
+sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev pkg-config
+```
+
+### ⚙️ Otomatik Çoklu-Platform CI/CD (GitHub Actions)
+Repository içerisinde yer alan `.github/workflows/tauri-build.yml` iş akışı sayesinde, projenize her push veya tag gönderildiğinde Linux ve Windows kurulum paketleri otomatik olarak derlenir ve GitHub Releases / Artifacts üzerinde yayınlanır.
+
+---
+
 ## 🐳 Docker ile Çalıştırma
 
 Uygulamayı Docker kapsayıcısı (container) içerisinde çalıştırmak için aşağıdaki yöntemlerden birini kullanabilirsiniz:
