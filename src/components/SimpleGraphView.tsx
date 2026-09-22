@@ -24,6 +24,7 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isFrozen, setIsFrozen] = useState(false);
 
   const fgRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -472,6 +473,24 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
 
         {/* Filter, Search & Mode Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Freeze / Unfreeze Animation Button */}
+          <button
+            onClick={() => setIsFrozen(!isFrozen)}
+            title="Grafik fizik simülasyonunu dondur veya serbest bırak"
+            style={{
+              padding: "5px 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              borderRadius: 6,
+              border: `1px solid ${colors.border}`,
+              backgroundColor: isFrozen ? colors.nodeHover : colors.bg,
+              color: isFrozen ? "#ffffff" : colors.text,
+              cursor: "pointer",
+            }}
+          >
+            {isFrozen ? "▶️ Hareketi Başlat" : "⏸️ Hareketi Dondur"}
+          </button>
+
           {/* Graph Filter Dropdown */}
           <select
             value={filterScope}
@@ -624,8 +643,10 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
             linkDirectionalParticleWidth={3}
             linkDirectionalParticleSpeed={0.008}
             linkDirectionalParticleColor={() => colors.particle}
-            d3VelocityDecay={0.3}
-            cooldownTicks={100}
+            warmupTicks={100}
+            cooldownTicks={isFrozen ? 0 : 50}
+            d3VelocityDecay={0.6}
+            d3AlphaDecay={0.05}
           />
         ) : (
           <ForceGraph3D
@@ -644,6 +665,10 @@ export const SimpleGraphView: React.FC<SimpleGraphViewProps> = ({
             linkDirectionalParticleSpeed={0.008}
             linkDirectionalParticleColor={() => colors.particle}
             showNavInfo={false}
+            warmupTicks={100}
+            cooldownTicks={isFrozen ? 0 : 50}
+            d3VelocityDecay={0.6}
+            d3AlphaDecay={0.05}
           />
         )}
 

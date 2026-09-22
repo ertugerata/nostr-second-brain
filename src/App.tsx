@@ -184,15 +184,16 @@ export function App() {
     if (isLoadingMore) return;
 
     const allNotes = Array.from(notes.values());
-    if (allNotes.length === 0) return;
+    const oldestTimestamp = allNotes.length > 0
+      ? Math.min(...allNotes.map((n) => n.createdAt))
+      : Math.floor(Date.now() / 1000);
 
-    const oldestTimestamp = Math.min(...allNotes.map((n) => n.createdAt));
     setIsLoadingMore(true);
-    setStatusText("Eski notlar çekiliyor...");
+    setStatusText("Eski notlar relay'lerden çekiliyor...");
 
     const sub = nostrService.ndk.subscribe(
       { kinds: [30818 as number, 5 as number, 1059 as number], limit: 200, until: oldestTimestamp - 1 },
-      { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: true }
+      { cacheUsage: NDKSubscriptionCacheUsage.PARALLEL, closeOnEose: true }
     );
 
     let count = 0;
@@ -203,7 +204,7 @@ export function App() {
 
     sub.on("eose", () => {
       setIsLoadingMore(false);
-      setStatusText(`Eski notlar yüklendi (${count} yeni kayıt).`);
+      setStatusText(`Eski notlar yüklendi (${count} yeni kayıt alındı).`);
     });
 
     setTimeout(() => {
@@ -400,9 +401,21 @@ export function App() {
     }
   };
 
-  const handleSelectNote = (selectedSlug: string) => {
-    const note = notes.get(selectedSlug);
-    setSlug(selectedSlug);
+  const handleSelectNote = (selectedSlug: string, noteId?: string) => {
+    let note: NoteItem | undefined;
+    if (noteId) {
+      for (const item of notes.values()) {
+        if (item.id === noteId) {
+          note = item;
+          break;
+        }
+      }
+    }
+    if (!note) {
+      note = notes.get(selectedSlug);
+    }
+
+    setSlug(note ? note.slug : selectedSlug);
     setContent(note ? note.content : "");
     setIsPrivate(!!note?.isPrivate);
     setActiveTab("editor");
@@ -411,6 +424,7 @@ export function App() {
   const handleNewNote = () => {
     setSlug("yeni-not");
     setContent("");
+    setIsPrivate(false);
     setActiveTab("editor");
   };
 
@@ -633,17 +647,14 @@ export function App() {
       {/* Sol Menü / Sidebar */}
       <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <button
-              type="button"
-              className="hamburger-btn"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              title="Menüyü Kapat"
-            >
-              ☰
-            </button>
-            <span className="sidebar-title">🧠 Nostr Brain</span>
-          </div>
+          <button
+            type="button"
+            className="hamburger-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title="Menüyü Kapat"
+          >
+            ☰
+          </button>
         </div>
 
         {/* Action buttons under hamburger menu */}
@@ -787,7 +798,7 @@ export function App() {
               return (
                 <div
                   key={note.id}
-                  onClick={() => handleSelectNote(note.slug)}
+                  onClick={() => handleSelectNote(note.slug, note.id)}
                   className={`note-item ${slug === note.slug ? "active" : ""}`}
                 >
                   <div className="note-item-header">
@@ -917,8 +928,32 @@ export function App() {
               </button>
             )}
 
-            <h1 className="app-title" style={{ fontSize: "15px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center" }}>
-              {activeTab === "editor" ? (slug || "Not Editörü") : activeTab === "graph" ? "Grafik Görünümü" : "Ayarlar"}
+            <button
+              type="button"
+              className="brand-logo-btn"
+              onClick={() => {
+                setActiveTab("editor");
+              }}
+              title="Ana Sayfaya Dön (Not Editörü)"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "16px",
+                fontWeight: 800,
+                color: "var(--text-primary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "2px 6px",
+                borderRadius: "6px",
+              }}
+            >
+              🧠 Nostr Brain
+            </button>
+
+            <h1 className="app-title" style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--text-muted)", display: "flex", alignItems: "center" }}>
+              {activeTab === "editor" ? (slug ? `> ${slug}` : "> Not Editörü") : activeTab === "graph" ? "> Grafik Görünümü" : "> Ayarlar"}
             </h1>
 
             <RelayStatusIndicator ready={ready} />
@@ -1059,7 +1094,7 @@ export function App() {
                   <div className="preview-box">
                     <div className="preview-title">ÖNİZLEME (Markdown / NIP-54 Rendered)</div>
                     {content.trim() ? (
-                      <WikiContent content={content} onNavigate={handleSelectNote} />
+                      <WikiContent content={content} onNavigate={(selectedSlug) => handleSelectNote(selectedSlug)} />
                     ) : (
                       <p style={{ color: "var(--text-muted)", fontSize: "14px", fontStyle: "italic" }}>
                         Önizleme için içeriği girin veya bir .md dosyası yükleyin...
@@ -1136,7 +1171,7 @@ export function App() {
             >
               <SimpleGraphView
                 graphData={graphData}
-                onSelectNode={handleSelectNote}
+                onSelectNode={(selectedSlug) => handleSelectNote(selectedSlug)}
                 theme={theme}
                 currentUserPubkey={currentUserPubkey}
               />
@@ -1162,9 +1197,11 @@ export function App() {
           versions={currentSlugVersions}
           currentUserPubkey={currentUserPubkey}
           onSelectVersion={(selectedVersion) => {
+            setSlug(selectedVersion.slug);
             setContent(selectedVersion.content);
+            setIsPrivate(!!selectedVersion.isPrivate);
             setShowVersionModal(false);
-            setStatusText(`Versiyon ${new Date(selectedVersion.createdAt * 1000).toLocaleTimeString("tr-TR")} editöre yüklendi.`);
+            setStatusText(`Sürüm ${new Date(selectedVersion.createdAt * 1000).toLocaleTimeString("tr-TR")} editöre yüklendi.`);
           }}
           onDeleteVersion={handleDeleteVersionItem}
           onClose={() => setShowVersionModal(false)}

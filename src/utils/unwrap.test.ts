@@ -10,6 +10,8 @@ import {
   removeAllowedNpub,
   getAllowedNpubs,
   getAllowedRecipientPubkeys,
+  getAllowedRecipients,
+  importRecipientsFromTxt,
 } from "./recipientStore";
 
 // Mock localStorage for node environment in vitest
@@ -206,5 +208,38 @@ describe("recipientStore Npub Management Tests", () => {
     expect(removeRes).toBe(true);
     expect(getAllowedNpubs()).toEqual([npub2]);
     expect(getAllowedRecipientPubkeys()).toEqual([pk2]);
+  });
+
+  it("handles expiration dates and TXT import/export for allowed recipient npubs", () => {
+    const sk1 = generateSecretKey();
+    const pk1 = getPublicKey(sk1);
+    const npub1 = nip19.npubEncode(pk1);
+
+    const sk2 = generateSecretKey();
+    const pk2 = getPublicKey(sk2);
+    const npub2 = nip19.npubEncode(pk2);
+
+    // Ekleme: default 30 days
+    addAllowedNpub(npub1, 30);
+    // Ekleme: süresi dolmuş (negative duration)
+    addAllowedNpub(npub2, -1);
+
+    // Active npubs should only include non-expired (npub1)
+    expect(getAllowedNpubs()).toEqual([npub1]);
+    expect(getAllowedRecipientPubkeys()).toEqual([pk1]);
+
+    // But getAllowedRecipients includes both items with expiration details
+    const allRecipients = getAllowedRecipients();
+    expect(allRecipients.length).toBe(2);
+
+    // TXT import testing
+    const sk3 = generateSecretKey();
+    const pk3 = getPublicKey(sk3);
+    const npub3 = nip19.npubEncode(pk3);
+
+    const txtData = `# Comment line\n${npub3} | Süresiz\n`;
+    const importRes = importRecipientsFromTxt(txtData);
+    expect(importRes.addedCount).toBe(1);
+    expect(getAllowedNpubs()).toContain(npub3);
   });
 });

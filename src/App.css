@@ -127,6 +127,14 @@ body {
   color: var(--text-primary);
 }
 
+.brand-logo-btn {
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.brand-logo-btn:hover {
+  background-color: var(--bg-secondary) !important;
+}
+
 .top-bar-hamburger {
   margin-right: 4px;
 }
