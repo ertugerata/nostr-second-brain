@@ -24,11 +24,11 @@
     "nostr-tools": "^2.25.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-force-graph": "^1.48.2",
     "react-force-graph-2d": "^1.29.1",
     "react-force-graph-3d": "^1.29.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.5",

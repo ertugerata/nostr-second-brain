@@ -19,7 +19,7 @@ import { LocalFileSyncService } from "./utils/fileSync";
 import { createGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
 import { getAllowedRecipientPubkeys } from "./utils/recipientStore";
-import { ASSET_BLOB_KIND, ASSET_KEY_RUMOR_KIND } from "./utils/assets";
+import { ASSET_BLOB_KIND, ASSET_KEY_RUMOR_KIND, ensureAssetKeysForRecipients } from "./utils/assets";
 import "./App.css";
 
 export function App() {
@@ -303,6 +303,7 @@ export function App() {
       let savedItem: NoteItem;
 
       if (isPrivate && userSecretKey) {
+        await ensureAssetKeysForRecipients(content, userSecretKey);
         const recipientPubkeys = getAllowedRecipientPubkeys();
         const targetPubkeys = Array.from(new Set([userPubkey, ...recipientPubkeys].filter(Boolean)));
 

@@ -100,7 +100,8 @@ ${content}`;
     filename: string,
     bytes: Uint8Array,
     mime: string,
-    isPrivate: boolean = false
+    isPrivate: boolean = false,
+    assetId?: string
   ): Promise<LocalSaveResult> {
     if (!this.dirHandle) {
       return { saved: false };
@@ -113,12 +114,14 @@ ${content}`;
 
     try {
       const assetsDirHandle = await this.dirHandle.getDirectoryHandle("assets", { create: true });
-      const fileHandle = await assetsDirHandle.getFileHandle(filename, { create: true });
+      const targetFilename =
+        assetId && !filename.startsWith(assetId.slice(0, 8)) ? `${assetId.slice(0, 8)}-${filename}` : filename;
+      const fileHandle = await assetsDirHandle.getFileHandle(targetFilename, { create: true });
       const writable = await fileHandle.createWritable();
       const blob = new Blob([toArrayBuffer(bytes)], { type: mime });
       await writable.write(blob);
       await writable.close();
-      console.log(`[Yerel Disk] assets/${filename} dosyası başarıyla güncellendi.`);
+      console.log(`[Yerel Disk] assets/${targetFilename} dosyası başarıyla güncellendi.`);
       return { saved: true };
     } catch (err: any) {
       console.error("[Yerel Disk] Asset yazma hatası:", err);
