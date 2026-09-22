@@ -14,7 +14,7 @@ on:
 jobs:
   build-tauri:
     permissions:
-      contents: write
+      contents: ${{ github.event_name == 'pull_request' && 'read' || 'write' }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +58,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri Desktop Application
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -80,7 +80,7 @@ jobs:
 
   build-tauri-android:
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-22.04
 
     steps:

@@ -11,7 +11,7 @@ import {
   sha256Hex,
   toArrayBuffer,
 } from "./crypto";
-import { validateAssetFile, ALLOWED_ASSET_MIME_TYPES, MAX_ASSET_SIZE_BYTES } from "./assets";
+import { validateAssetFile, ALLOWED_ASSET_MIME_TYPES, MAX_ASSET_SIZE_BYTES, extractAssetIds } from "./assets";
 
 function makeBytes(signature: number[], extraLength = 100): Uint8Array {
   const bytes = new Uint8Array(signature.length + extraLength);
@@ -148,5 +148,16 @@ describe("validateAssetFile (MIME + magic-byte doğrulama)", () => {
 
   it("ALLOWED_ASSET_MIME_TYPES yalnızca jpg/png/pdf içerir", () => {
     expect(ALLOWED_ASSET_MIME_TYPES).toEqual(["image/jpeg", "image/png", "application/pdf"]);
+  });
+});
+
+describe("extractAssetIds", () => {
+  it("extracts asset IDs from markdown image and link syntax", () => {
+    const text = "A note with ![image](asset:a1b2c3d4e5f67890a1b2c3d4e5f67890) and [doc](asset:1234567890abcdef1234567890abcdef)";
+    const ids = extractAssetIds(text);
+    expect(ids).toEqual([
+      "a1b2c3d4e5f67890a1b2c3d4e5f67890",
+      "1234567890abcdef1234567890abcdef",
+    ]);
   });
 });

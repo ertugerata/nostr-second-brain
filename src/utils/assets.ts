@@ -193,7 +193,7 @@ export async function uploadAsset({ file, userSecretKey, isPrivate, filename }: 
   }
 
   // Otomatik yerel disk senkronizasyonu (assets/ klasörüne Logseq stili)
-  await LocalFileSyncService.saveAssetToLocalDisk(displayName, bytes, mime, isPrivate);
+  await LocalFileSyncService.saveAssetToLocalDisk(displayName, bytes, mime, isPrivate, assetId);
 
   const markdownRef =
     mime === "application/pdf" ? `[📄 ${displayName}](asset:${assetId})` : `![${displayName}](asset:${assetId})`;
@@ -352,11 +352,75 @@ export async function resolveAsset(assetId: string, userSecretKey: Uint8Array | 
 
 /** İçerikten `asset:<id>` referanslarını ayıklar (temizlik/önyükleme gibi işler için). */
 export function extractAssetIds(content: string): string[] {
-  const regex = /\]\(asset:([a-f0-9]{16,64})\)/g;
+  const regex = /asset:([a-f0-9]{16,64})/g;
   const ids = new Set<string>();
   let match: RegExpExecArray | null;
   while ((match = regex.exec(content)) !== null) {
     ids.add(match[1]);
   }
   return Array.from(ids);
+}
+
+/**
+ * Kullanıcıya ait gift wrap olaylarından belirli bir assetId'ye ait AES anahtarını bulur.
+ */
+export async function getAssetKey(assetId: string, userSecretKey: Uint8Array): Promise<string | null> {
+  if (!nostrService.ndk.signer) return null;
+  const userPubkey = (await nostrService.ndk.signer.user()).pubkey;
+  const keyWrapEvents = await nostrService.ndk.fetchEvents(
+    { kinds: [1059 as number], "#p": [userPubkey], limit: 500 },
+    { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
+  );
+
+  for (const wrapEvent of keyWrapEvents) {
+    const rumor = unwrapGift(wrapEvent.rawEvent ? wrapEvent.rawEvent() : wrapEvent, userSecretKey);
+    if (!rumor || rumor.kind !== ASSET_KEY_RUMOR_KIND) continue;
+    try {
+      const payload = JSON.parse(rumor.content);
+      if (payload.assetId === assetId && payload.key) {
+        return payload.key;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Not içeriğindeki asset:<id> referanslarını tarar ve notun izin verilen alıcı
+ * listesindeki (kullanıcı + izinli npub'lar) tüm kişilere asset AES anahtarının
+ * gift-wrap (NIP-59) kopyasını oluşturup yayınlar. Bu sayede sonradan eklenen
+ * alıcılar da nottaki görselleri/PDF'leri şifresini çözüp açabilir.
+ */
+export async function ensureAssetKeysForRecipients(content: string, userSecretKey: Uint8Array): Promise<void> {
+  const assetIds = extractAssetIds(content);
+  if (assetIds.length === 0) return;
+
+  if (!nostrService.ndk.signer) return;
+  const userPubkey = (await nostrService.ndk.signer.user()).pubkey;
+  const recipientPubkeys = getAllowedRecipientPubkeys();
+  const targetPubkeys = Array.from(new Set([userPubkey, ...recipientPubkeys].filter(Boolean)));
+
+  for (const assetId of assetIds) {
+    const aesKeyBase64 = await getAssetKey(assetId, userSecretKey);
+    if (!aesKeyBase64) continue;
+
+    const keyPayload = JSON.stringify({ assetId, key: aesKeyBase64 });
+
+    for (const targetPk of targetPubkeys) {
+      const giftWrapRaw = createGiftWrap(
+        keyPayload,
+        userSecretKey,
+        [["asset-id", assetId], ["private", "true"]],
+        targetPk,
+        ASSET_KEY_RUMOR_KIND
+      );
+      const keyEvent = new NDKEvent(nostrService.ndk, giftWrapRaw);
+      if (nostrService.ndk.cacheAdapter) {
+        await nostrService.ndk.cacheAdapter.setEvent(keyEvent, []);
+      }
+      keyEvent.publish().catch((err) => console.warn(`Asset anahtarı yayın hatası (${targetPk.slice(0, 8)}...):`, err));
+    }
+  }
 }
