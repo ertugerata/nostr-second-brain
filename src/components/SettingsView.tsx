@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NDKEvent, NDKRelay } from "@nostr-dev-kit/ndk";
 import { nostrService, normalizeRelayUrl } from "../nostr";
 import { LocalFileSyncService } from "../utils/fileSync";
 import {
-  getAllowedNpubs,
+  getAllowedRecipients,
   addAllowedNpub,
   removeAllowedNpub,
   validateNpub,
+  exportRecipientsToTxt,
+  importRecipientsFromTxt,
+  RecipientItem,
+  DEFAULT_VALIDITY_DAYS,
 } from "../utils/recipientStore";
 import { KeyStoreService, validateAndEvaluatePassphrase } from "../utils/keyStore";
 
@@ -32,9 +36,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   );
 
   // Npub Alıcı Yönetimi State'leri
-  const [allowedNpubs, setAllowedNpubs] = useState<string[]>([]);
+  const [allowedRecipients, setAllowedRecipients] = useState<RecipientItem[]>([]);
   const [newNpub, setNewNpub] = useState("");
+  const [durationDays, setDurationDays] = useState<number | null>(DEFAULT_VALIDITY_DAYS); // Varsayılan 30 gün (1 ay)
   const [npubStatus, setNpubStatus] = useState("");
+  const txtFileInputRef = useRef<HTMLInputElement>(null);
 
   // NIP-49 Key Vault State'leri
   const [nsecInput, setNsecInput] = useState("");
@@ -56,7 +62,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       write: true,
     }));
     setRelays(initialRelays);
-    setAllowedNpubs(getAllowedNpubs());
+    setAllowedRecipients(getAllowedRecipients());
     setHasKeyStored(KeyStoreService.hasStoredKey());
   }, []);
 
@@ -100,9 +106,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
     e.preventDefault();
     if (!newNpub.trim()) return;
 
-    const res = addAllowedNpub(newNpub);
+    const res = addAllowedNpub(newNpub, durationDays);
     if (res.success) {
-      setAllowedNpubs(getAllowedNpubs());
+      setAllowedRecipients(getAllowedRecipients());
       setNewNpub("");
       setNpubStatus(`✅ ${res.message} (Hex: ${res.hexPubkey?.slice(0, 12)}...)`);
     } else {
@@ -114,9 +120,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
   const handleRemoveNpub = (npubToRemove: string) => {
     const success = removeAllowedNpub(npubToRemove);
     if (success) {
-      setAllowedNpubs(getAllowedNpubs());
+      setAllowedRecipients(getAllowedRecipients());
       setNpubStatus(`Adres kaldırıldı: ${npubToRemove.slice(0, 16)}...`);
     }
+  };
+
+  // TXT Alıcı Dosyası Yükleme İşleyicisi
+  const handleImportTxt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const res = importRecipientsFromTxt(content, durationDays || DEFAULT_VALIDITY_DAYS);
+        setAllowedRecipients(getAllowedRecipients());
+        setNpubStatus(`📥 TXT İçe Aktarıldı: ${res.totalFound} adresten ${res.addedCount} tanesi başarıyla eklendi/güncellendi.`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // Yerel Klasör Seçimi (Local Directory Sync)
@@ -194,11 +218,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       const event = new NDKEvent(nostrService.ndk);
       event.kind = 10002; // NIP-65 Relay List Metadata
 
-      // NIP-65 etiket formatı: ["r", "wss://relay.example.com", "read" | "write"]
       const tags: string[][] = [];
       relays.forEach((r) => {
         if (r.read && r.write) {
-          tags.push(["r", r.url]); // İkisi de aktifse rol belirtilmez
+          tags.push(["r", r.url]);
         } else if (r.read) {
           tags.push(["r", r.url, "read"]);
         } else if (r.write) {
@@ -209,7 +232,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
       event.tags = tags;
       await event.publish();
 
-      // NDK Havuzuna ve Servise Yeni Relay'leri Anında Kaydet ve Bağla
       for (const r of relays) {
         await nostrService.addRelay(r.url);
       }
@@ -227,9 +249,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
 
   return (
     <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, background: "var(--bg-primary, #fff)", borderRadius: 8, border: "1px solid var(--input-border, #e2e8f0)", color: "var(--text-primary, #0f172a)" }}>
+      {/* Hidden file input for TXT import */}
+      <input
+        type="file"
+        accept=".txt"
+        ref={txtFileInputRef}
+        onChange={handleImportTxt}
+        style={{ display: "none" }}
+      />
+
       <h2 style={{ fontSize: 18, marginBottom: 10 }}>⚙️ Sistem & Relay Ayarları</h2>
       <p style={{ fontSize: 13, color: "var(--text-muted, #64748b)", marginBottom: 20 }}>
-        Kendi Nostr gizli anahtarınızı tanımlayın, relay tercihlerinizi NIP-65 standardına göre yapılandırın, gizli not erişim alıcılarını tanımlayın ve yerel klasör otomatik senkronizasyonunu yönetin.
+        Kendi Nostr gizli anahtarınızı tanımlayın, relay tercihlerinizi NIP-65 standardına göre yapılandırın, gizli not erişim alıcılarını yönetin ve yerel klasör otomatik senkronizasyonunu kontrol edin.
       </p>
 
       {status && (
@@ -339,12 +370,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
         )}
       </div>
 
-      {/* Gizli/Özel Not Alıcıları (Npub Adresleri) Bölümü */}
+      {/* Gizli/Özel Not Alıcıları (Npub Yönetimi & Geçerlilik Süresi) Bölümü */}
       <div style={{ marginBottom: 24, padding: 14, background: "var(--bg-secondary, #f8fafc)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 6 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>🔒 Gizli Not Okuyucu Alıcıları (Npub Yönetimi)</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>🔒 Gizli Not Okuyucu Alıcıları (Npub Yönetimi)</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => exportRecipientsToTxt()}
+              style={{ padding: "4px 10px", fontSize: 12, fontWeight: 600, background: "var(--bg-primary, #fff)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, cursor: "pointer", color: "var(--text-primary)" }}
+              title="Alıcı listesini TXT dosyası olarak dışarı aktar"
+            >
+              📥 TXT Aktar
+            </button>
+            <button
+              type="button"
+              onClick={() => txtFileInputRef.current?.click()}
+              style={{ padding: "4px 10px", fontSize: 12, fontWeight: 600, background: "var(--bg-primary, #fff)", border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, cursor: "pointer", color: "var(--text-primary)" }}
+              title="TXT dosyasından npub listesi yükle"
+            >
+              📤 TXT Yükle
+            </button>
+          </div>
+        </div>
+
         <p style={{ fontSize: 12, color: "var(--text-muted, #64748b)", marginBottom: 12 }}>
-          Gizli / özel notlarınızı (NIP-59 Gift Wrap) okuyabilmesini istediğiniz kişilerin <code>npub1...</code> adreslerini buraya ekleyin.
-          Gizli bir not kaydettiğinizde, bu listedeki her kişi için ayrı bir şifreli zarf oluşturulup yayınlanır.
+          Gizli / özel notlarınızı (NIP-59 Gift Wrap) okuyabilmesini istediğiniz kişilerin <code>npub1...</code> adreslerini ekleyin.
+          Her eklenen adres için varsayılan geçerlilik süresi <strong>1 Ay</strong>'dır ve istendiğinde değiştirilebilir.
         </p>
 
         {npubStatus && (
@@ -353,39 +405,68 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onKeyUpdated }) => {
           </div>
         )}
 
-        <form onSubmit={handleAddNpub} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+        <form onSubmit={handleAddNpub} style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
           <input
             type="text"
             placeholder="npub1..."
             value={newNpub}
             onChange={(e) => setNewNpub(e.target.value)}
-            style={{ flex: 1, padding: 8, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary, #0f172a)", fontFamily: "monospace", fontSize: 13 }}
+            style={{ flex: 1, minWidth: "220px", padding: 8, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary, #0f172a)", fontFamily: "monospace", fontSize: 13 }}
           />
+          <select
+            value={durationDays === null ? "unlimited" : durationDays}
+            onChange={(e) => {
+              const val = e.target.value;
+              setDurationDays(val === "unlimited" ? null : Number(val));
+            }}
+            title="Geçerlilik Süresi"
+            style={{ padding: "8px 10px", fontSize: 12, fontWeight: 600, border: "1px solid var(--input-border, #cbd5e1)", borderRadius: 4, background: "var(--bg-primary, #fff)", color: "var(--text-primary)" }}
+          >
+            <option value={7}>1 Hafta</option>
+            <option value={30}>1 Ay (Varsayılan)</option>
+            <option value={90}>3 Ay</option>
+            <option value={180}>6 Ay</option>
+            <option value={365}>1 Yıl</option>
+            <option value="unlimited">Süresiz (Sınırsız)</option>
+          </select>
+
           <button type="submit" style={{ padding: "8px 16px", background: "var(--accent-blue, #2563eb)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
             + Alıcı Ekle
           </button>
         </form>
 
-        {allowedNpubs.length > 0 ? (
+        {allowedRecipients.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted, #64748b)" }}>
-              İzin Verilen Alıcı Adresleri ({allowedNpubs.length}):
+              Kayıtlı Alıcı Adresleri ({allowedRecipients.length}):
             </div>
-            {allowedNpubs.map((npub) => {
-              const val = validateNpub(npub);
+            {allowedRecipients.map((item) => {
+              const val = validateNpub(item.npub);
+              const now = Date.now();
+              const isExpired = item.expiresAt !== null && item.expiresAt < now;
+
+              let expLabel = "Süresiz";
+              if (item.expiresAt !== null) {
+                const diffDays = Math.ceil((item.expiresAt - now) / (1000 * 60 * 60 * 24));
+                const dateStr = new Date(item.expiresAt).toLocaleDateString("tr-TR");
+                expLabel = isExpired ? `⚠️ Süresi Doldu (${dateStr})` : `Kalan: ${diffDays} gün (${dateStr})`;
+              }
+
               return (
-                <div key={npub} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-primary, #fff)", border: "1px solid var(--input-border, #e2e8f0)", borderRadius: 4 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}>{npub}</span>
-                    {val.hexPubkey && (
-                      <span style={{ fontSize: 11, color: "var(--text-muted, #64748b)", fontFamily: "monospace" }}>
-                        Hex: {val.hexPubkey.slice(0, 16)}...{val.hexPubkey.slice(-8)}
-                      </span>
-                    )}
+                <div key={item.npub} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-primary, #fff)", border: `1px solid ${isExpired ? "#ef4444" : "var(--input-border, #e2e8f0)"}`, borderRadius: 4, opacity: isExpired ? 0.75 : 1 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}>{item.npub}</span>
+                    <div style={{ display: "flex", gap: 10, fontSize: 11, color: isExpired ? "#ef4444" : "var(--text-muted, #64748b)" }}>
+                      <span>⏳ Geçerlilik: <strong>{expLabel}</strong></span>
+                      {val.hexPubkey && (
+                        <span style={{ fontFamily: "monospace" }}>Hex: {val.hexPubkey.slice(0, 10)}...</span>
+                      )}
+                    </div>
                   </div>
+
                   <button
                     type="button"
-                    onClick={() => handleRemoveNpub(npub)}
+                    onClick={() => handleRemoveNpub(item.npub)}
                     style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
                     title="Alıcıyı kaldır"
                   >
