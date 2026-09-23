@@ -29,6 +29,7 @@
 - [x] **Yerel Dizin İçeri Dışarı Aktarım (Import / Export):**
   - [x] Bilgisayardan `.md` dosyası yükleme ve dışarı aktarma modülü
 
-## 🚀 Faz 5: Masaüstü Paketleme & İleri Seviye Özellikler (Devam Ediyor)
-- [x] **D3.js / React-Force-Graph Entegrasyonu:** SVG Graph View'in 2D/3D sürüklenebilir interaktif Obsidian görünümüne dönüştürülmesi, kullanıcının imzaladığı notlara & bağlantılarına öncelik veren filtreleme seçeneği.
-- [ ] **Tauri v2 Entegrasyonu:** Mimarinin Rust tabanlı Tauri v2 ile yerel uygulama (macOS, Linux, Windows) olarak derlenmesi
+## 🚀 Faz 5: Masaüstü Paketleme & İleri Seviye Özellikler (Tamamlandı)
+- [x] **D3.js / React-Force-Graph Entegrasyonu:** SVG Graph View'in 2D/3D sürüklenip bırakılabilir interaktif Obsidian görünümüne dönüştürülmesi, kullanıcının imzaladığı notlara & bağlantılarına öncelik veren filtreleme seçeneği.
+- [x] **Tauri v2 Entegrasyonu:** Mimarinin Rust tabanlı Tauri v2 ile yerel masaüstü ve mobil uygulama (Linux, Windows, Android) olarak derlenmesi
+- [x] **MVP 0.1.0 Sürümü ve CI/CD Release Yapılandırması:** GitHub Actions release iş akışı (`release.yml`), GHCR Docker tagleme (`deploy-ghcr.yml`) ve `v0.1.0` tag yapılandırması.

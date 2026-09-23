@@ -1,0 +1,65 @@
+name: Release & Publish MVP 0.1.0
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Create Web Dist Archive
+        run: tar -czvf nostr-second-brain-web-dist.tar.gz -C dist .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nostr-second-brain-web-dist.tar.gz
+          name: Nostr Second Brain v0.1.0 (MVP)
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 🧠 Nostr Second Brain v0.1.0 (MVP Release)
+
+            Veri mülkiyetini kullanıcılara devreden, Offline-First mimaride ve Nostr Protokolü üzerinde çalışan merkezsiz kişisel bilgi yönetim / ikinci beyin uygulaması.
+
+            ### 🌟 Öne Çıkan Özellikler (MVP Features)
+            - 🔓 **Sıfır Lock-in (Tam Veri Mülkiyeti):** Notlarınız merkezi bir sunucuda kilitli kalmaz. Verileriniz Nostr event'leri (NIP-01, NIP-54) olarak sizin tarafınızdan imzalanır ve seçtiğiniz relay'lerde saklanır.
+            - ⚡ **Offline-First Mimari:** IndexedDB (`@nostr-dev-kit/ndk-cache-dexie`) önbelleği ile ağ bağlantısı olmadan milisaniyeler içinde hızlı açılış, not yazma ve düzenleme.
+            - 📁 **Yerel Klasör Otomatik Senkronizasyonu (Local File Sync):** Web File System Access API veya Tauri ile bilgisayarınızdaki yerel bir klasör ile notlar `.md` (YAML Frontmatter ile) ve medya dosyaları `assets/` olarak anlık eşitlenir.
+            - 📎 **AES-256-GCM Zarf Şifreli Asset/Medya Eklentileri:** Görsel ve belgeler (`JPG`, `PNG`, `PDF`) AES-256-GCM ve NIP-59 anahtar dağıtımı ile uçtan uca şifreli olarak notlara eklenebilir (`kind: 31736` & `kind: 31737`).
+            - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında çift yönlü bağlantılar oluşturulabilir.
+            - 🕸️ **Obsidian Tarzı İnteraktif 2D/3D Graph View:** Notlar arasındaki ilişkileri görselleştiren sürükleyip bırakılabilir, yakınlaştırılabilir 2D ve 3D modlu interaktif ağ haritası (`react-force-graph`).
+            - 🔐 **NIP-49 Güvenli Kasalı Kimlik Yönetimi:** Private key (`nsec1...` veya Hex formatı) NIP-49 standardı ile parola korumalı `ncryptsec` kasasında saklanır. NIP-07 eklentileri (Alby, nos2x) ve misafir modları desteklenir.
+            - 🕵️ **Gizli Notlar & Npub Alıcı Yönetimi (NIP-44 & NIP-59):** Özel notlar NIP-44 ile şifrelenip NIP-59 Gift Wrap (`kind: 1059`) zarflarında belirlediğiniz `npub` adresli alıcılar için güvenle iletilir.
+            - 🖥️ **Çoklu Platform Masaüstü & Mobil Desteği (Tauri v2):** Linux (`.AppImage`, `.deb`), Windows (`.exe`, `.msi`) ve Android (`.apk`) çıktıları tauri-build iş akışı tarafından üretilmektedir.
+
+            ---
+            *Masaüstü ve mobil yükleyicileri için build artifact'lerini veya tauri-build workflow çıktılarını inceleyebilirsiniz.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
