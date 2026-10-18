@@ -93,7 +93,7 @@ export function clearEphemeralKeyForGiftWrap(): void {
 // enabling NIP-09 delete to work since signer's pubkey matches event's pubkey.
 export async function deriveEphemeralKey(userSecretKey: Uint8Array): Promise<Uint8Array> {
   // Derive ephemeral key by hashing the user's secret key with SHA-256
-  const hashBuffer = await crypto.subtle.digest("SHA-256", userSecretKey);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", toArrayBuffer(userSecretKey));
   return new Uint8Array(hashBuffer);
 }
 
@@ -170,12 +170,4 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-// Deterministic ephemeral key derivation from user secret key (for NIP-59 Gift Wrap consistency)
-// This ensures the same user always generates the same ephemeral pubkey,
-// enabling NIP-09 delete to work since signer's pubkey matches event's pubkey.
-export async function deriveEphemeralKey(userSecretKey: Uint8Array): Promise<Uint8Array> {
-  // Derive ephemeral key by hashing the user's secret key with SHA-256
-  const hashBuffer = await crypto.subtle.digest("SHA-256", toArrayBuffer(userSecretKey));
-  return new Uint8Array(hashBuffer);
 }

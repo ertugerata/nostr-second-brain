@@ -351,7 +351,7 @@ export class NostrService {
       });
     };
   }
-  public async deleteEvent(eventId: string, noteSlug?: string, reason?: string): Promise<NDKEvent | null> {
+  public async deleteEvent(eventId: string, noteSlug?: string, _reason?: string): Promise<NDKEvent | null> {
     /**
      * NIP-09 Deletion Event (kind: 5)
      * Belirtilen event veya parametrik adreslenebilir (addressable) not için silme talebi yayınlar.
