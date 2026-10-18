@@ -117,42 +117,6 @@ ${content}`;
     }
   }
 
-  /**
-   * Gizli not için sadece metadata (slug, pubkey, created_at, is_private) diske kaydeder.
-   * İçerik şifrelenmediği için kaydedilmez - kullanıcıya uyarı verilir.
-   */
-  private static async savePrivateNoteMetadata(
-    slug: string,
-    pubkey: string,
-    createdAt: number
-  ): Promise<void> {
-    const metadata = `---
-title: "${slug}"
-pubkey: "${pubkey}"
-created_at: ${createdAt}
-is_private: true
----\n`;
-    try {
-      // Create a metadata-only file (no content body)
-      const fileName = `${slug}.meta.md`;
-      if (this.dirHandle) {
-        const fileEntry = await this.dirHandle.getFileHandle(fileName, { create: true });
-        await fileEntry.createWriter().write(metadata);
-        console.log(`[Yerel Disk] Gizli not metadata dosyası oluşturuldu: ${fileName}`);
-      }
-    } catch (err) {
-      console.warn("[Yerel Disk] Gizli not metadata kaydedilemedi:", err);
-    }
-  }
-  }
-
-  /**
-   * Not kaydedildiği anda belirtilen yerel klasörde slug.md dosyası oluşturur veya günceller
-   * 
-   * Gizli (private) notlar için: yerel diske şifresiz içerik kaydedilmez.
-   * Şifreleme z-relay'lerde NIP-59 gift wrap (kind: 1059) ile yapılıyor.
-   * Yerel disk kopya sadece non-private notlar için opt-in olmalı.
-  }
 
   /**
    * Asset dosyasını yerel diskteki assets/ klasörüne kaydeder (Logseq stili)

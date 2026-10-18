@@ -16,7 +16,7 @@ import { KeyStoreService } from "./utils/keyStore";
 import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
 import { getDefaultSampleNote } from "./utils/sampleNote";
 import { LocalFileSyncService } from "./utils/fileSync";
-import { createGiftWrap, setEphemeralKeyForGiftWrap, clearEphemeralKeyForGiftWrap } from "./utils/crypto";
+import { createGiftWrap, clearEphemeralKeyForGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
 import { getAllowedRecipientPubkeys } from "./utils/recipientStore";
 import { ASSET_BLOB_KIND, ASSET_KEY_RUMOR_KIND, ensureAssetKeysForRecipients } from "./utils/assets";
@@ -826,7 +826,6 @@ export function App() {
                             handleDeleteNote(note.slug);
                           }}
                           title={note.isPrivate ? "Gizli notu yerel görünümden kaldır (NIP-09 yayınlanmaz)" : "Açık notu sil (NIP-09 yayınlanacak)"}
-                          title="Bu notu sil (NIP-09)"
                           style={{
                             background: "none",
                             border: "none",
