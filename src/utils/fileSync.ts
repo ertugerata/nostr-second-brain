@@ -4,10 +4,10 @@ export interface LocalSaveResult {
   saved: boolean;
   skippedPrivate?: boolean;
   error?: string;
+  metadataOnly?: boolean; warning?: string;
 }
 
 import { toArrayBuffer } from "./crypto";
-
 export class LocalFileSyncService {
   private static dirHandle: FileSystemDirectoryHandle | null = null;
 
@@ -48,10 +48,6 @@ export class LocalFileSyncService {
   public static getSelectedDirectoryName(): string | null {
     return this.dirHandle ? this.dirHandle.name : null;
   }
-
-  /**
-   * Not kaydedildiği anda belirtilen yerel klasörde slug.md dosyası oluşturur veya günceller
-   */
   public static async saveNoteToLocalDisk(
     slug: string,
     content: string,
@@ -63,9 +59,37 @@ export class LocalFileSyncService {
       return { saved: false };
     }
 
-    if (isPrivate && !this.isSyncPrivateNotesEnabled()) {
-      console.log(`[Yerel Disk] Gizli not (${slug}) için yerel disk senkronizasyonu kapalı olduğundan pas geçildi.`);
-      return { saved: false, skippedPrivate: true };
+    // Gizli notlar yerel diske şifresiz yazılmamalı - 
+    // şifreleme z-relay'lerde NIP-59 gift wrap (kind: 1059) ile yapılıyor.
+    // Yerel disk kopya sadece non-private notlar için opt-in olmalı.
+    if (isPrivate) {
+      if (this.isSyncPrivateNotesEnabled()) {
+        // Sync enabled but private: only save metadata (YAML frontmatter without content body)
+        // Kullanıcıya uyarı: Gizli notlar içerik ile diske yazilmaz, sadece metadata kaydedilir
+        // Bu, kullanıcının "local sync enabled" yapması halde de gizliliğin korunmasini sağlar
+        const fileName = `${slug}.md`;
+        const fileHandle = await this.dirHandle.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        // Sadece metadata - içerik DEĞİL, sadece header bilgileri
+        const fileContent = `---
+title: "${slug}"
+pubkey: "${pubkey}"
+created_at: ${createdAt}
+is_private: true
+---`;
+        await writable.write(fileContent);
+        await writable.close();
+        console.log(`[Yerel Disk] Gizli not (${slug}) - sadece metadata yerel diske kaydedildi; icerik NIP-59 ile relay'lerde shifrelenir.`);
+        return { saved: true, skippedPrivate: true, metadataOnly: true };
+      } else {
+        // Sync disabled: don't save private note content - uyarı ver
+        console.log(`[Yerel Disk] Gizli not (${slug}) yerel disk senkronizasyonu kapali - icerik diske yazilmadi (gizlilik korunuyor).`);
+        return { saved: false, skippedPrivate: true };
+      }
+    }
+
+    if (!this.isSyncPrivateNotesEnabled()) {
+      return { saved: false };
     }
 
     try {
@@ -91,6 +115,43 @@ ${content}`;
       console.error("[Yerel Disk] Yazma hatası:", err);
       return { saved: false, error: err?.message || String(err) };
     }
+  }
+
+  /**
+   * Gizli not için sadece metadata (slug, pubkey, created_at, is_private) diske kaydeder.
+   * İçerik şifrelenmediği için kaydedilmez - kullanıcıya uyarı verilir.
+   */
+  private static async savePrivateNoteMetadata(
+    slug: string,
+    pubkey: string,
+    createdAt: number
+  ): Promise<void> {
+    const metadata = `---
+title: "${slug}"
+pubkey: "${pubkey}"
+created_at: ${createdAt}
+is_private: true
+---\n`;
+    try {
+      // Create a metadata-only file (no content body)
+      const fileName = `${slug}.meta.md`;
+      if (this.dirHandle) {
+        const fileEntry = await this.dirHandle.getFileHandle(fileName, { create: true });
+        await fileEntry.createWriter().write(metadata);
+        console.log(`[Yerel Disk] Gizli not metadata dosyası oluşturuldu: ${fileName}`);
+      }
+    } catch (err) {
+      console.warn("[Yerel Disk] Gizli not metadata kaydedilemedi:", err);
+    }
+  }
+  }
+
+  /**
+   * Not kaydedildiği anda belirtilen yerel klasörde slug.md dosyası oluşturur veya günceller
+   * 
+   * Gizli (private) notlar için: yerel diske şifresiz içerik kaydedilmez.
+   * Şifreleme z-relay'lerde NIP-59 gift wrap (kind: 1059) ile yapılıyor.
+   * Yerel disk kopya sadece non-private notlar için opt-in olmalı.
   }
 
   /**

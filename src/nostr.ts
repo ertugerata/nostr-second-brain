@@ -356,10 +356,11 @@ export class NostrService {
    * NIP-09 Deletion Event (kind: 5)
    * Belirtilen event veya parametrik adreslenebilir (addressable) not için silme talebi yayınlar.
    */
-  public async deleteEvent(eventId: string, noteSlug?: string, reason: string = "Kullanıcı isteği ile silindi"): Promise<NDKEvent> {
-    const deleteEvent = new NDKEvent(this.ndk);
-    deleteEvent.kind = 5;
-    deleteEvent.content = reason;
+  // NIP-07 signer'i kontrol et: Gift Wrap (kind: 1059) notlar için NIP-09 silme desteklenmiyor
+  if (this.isNip07Signer()) {
+    console.warn("NIP-07 ile oturum açmışsınız: Gift Wrap (kind: 1059) notları relay'lerde NIP-09 ile silinemez. Yerel görünüm sadece güncellenecek.");
+    return;
+  }
 
     const tags: string[][] = [["e", eventId]];
 

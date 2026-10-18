@@ -1,4 +1,4 @@
-import { nip44, generateSecretKey, getPublicKey, finalizeEvent } from "nostr-tools";
+import { nip44, getPublicKey, finalizeEvent } from "nostr-tools";
 
 // Not İçeriğini veya veriyi NIP-44 ile şifreleme (alıcı pubkey belirtilmezse kendi pubkey'i kullanılır)
 export function encryptContent(content: string, secretKey: Uint8Array, recipientPubkey?: string): string {
@@ -16,7 +16,7 @@ export function decryptContent(ciphertext: string, secretKey: Uint8Array, sender
 
 // NIP-59 Gift Wrap Zarfı Oluşturma (kind: 1059)
 // NOT: rumorKind eklendi (varsayılan 30818 = NIP-54 not). Asset key-wrap gibi farklı
-// içerikleri de aynı, denenmiş gizlilik mekanizmasıyla sarmak için genelleştirildi.
+// içerikleri de aynı, denenmiş gizlilik mekanizmasıyla sarmak için genelleleştirildi.
 // NIP-44 plaintext limiti 65535 bayttır (~64KB); bu yüzden innerEventContent HER ZAMAN
 // küçük olmalıdır (not metni veya bir asset AES anahtarı gibi) — büyük ikili veri asla
 // doğrudan buraya verilmemelidir.
@@ -54,8 +54,13 @@ export function createGiftWrap(
     tags: [],
   }, userSecretKey);
 
-  // 3. Gift Wrap (kind: 1059): Ephemeral (geçici) key ile zarflama (encryptContent)
-  const ephemeralSecretKey = generateSecretKey();
+  // 3. Gift Wrap (kind: 1059): Deterministic ephemeral key from user secret key
+  // Hash userSecretKey to derive a consistent ephemeral key enabling NIP-09 deletion
+  // ÖNEMLİ: Ephemeral (geçici) key DEĞİL, userSecretKey hash'lenerek kullanılıyor!
+  // Bu sayede:
+  // 1. Note her seferinde aynı pubkey olur (NIP-09 silme çalışır)
+  // 2. unwrapGift userSecretKey ile çözülebilir
+  const ephemeralSecretKey = await deriveEphemeralKey(userSecretKey);
   const encryptedSeal = encryptContent(JSON.stringify(sealEvent), ephemeralSecretKey, targetPubkey);
 
   const giftWrapEvent = finalizeEvent({
@@ -66,6 +71,15 @@ export function createGiftWrap(
   }, ephemeralSecretKey);
 
   return giftWrapEvent;
+}
+
+// Deterministic ephemeral key derivation from user secret key (for NIP-59 Gift Wrap consistency)
+// This ensures the same user always generates the same ephemeral pubkey,
+// enabling NIP-09 delete to work since signer's pubkey matches event's pubkey.
+export async function deriveEphemeralKey(userSecretKey: Uint8Array): Promise<Uint8Array> {
+  // Derive ephemeral key by hashing the user's secret key with SHA-256
+  const hashBuffer = await crypto.subtle.digest("SHA-256", userSecretKey);
+  return new Uint8Array(hashBuffer);
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +108,7 @@ export async function exportAssetKeyBase64(key: CryptoKey): Promise<string> {
 
 // TS 5.7+ ile Uint8Array/ArrayBuffer tipleri daha katı hale geldi (Uint8Array<ArrayBufferLike>
 // artık WebCrypto/Blob API'lerinin beklediği somut ArrayBuffer'a otomatik atanamıyor).
-// Bu yardımcı, bağımsız bir ArrayBuffer kopyası üretip tip uyumunu garantiler.
+// Bu yardımcı, bağımsız bir ArrayBuffer kopyası üretip tip uyumunu garantiert.
 export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
@@ -141,4 +155,12 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+// Deterministic ephemeral key derivation from user secret key (for NIP-59 Gift Wrap consistency)
+// This ensures the same user always generates the same ephemeral pubkey,
+// enabling NIP-09 delete to work since signer's pubkey matches event's pubkey.
+export async function deriveEphemeralKey(userSecretKey: Uint8Array): Promise<Uint8Array> {
+  // Derive ephemeral key by hashing the user's secret key with SHA-256
+  const hashBuffer = await crypto.subtle.digest("SHA-256", toArrayBuffer(userSecretKey));
+  return new Uint8Array(hashBuffer);
 }

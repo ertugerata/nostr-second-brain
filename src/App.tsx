@@ -16,7 +16,7 @@ import { KeyStoreService } from "./utils/keyStore";
 import { exportNoteAsMarkdown, exportAllNotesAsJson, NoteItem } from "./utils/exportUtils";
 import { getDefaultSampleNote } from "./utils/sampleNote";
 import { LocalFileSyncService } from "./utils/fileSync";
-import { createGiftWrap } from "./utils/crypto";
+import { createGiftWrap, setEphemeralKeyForGiftWrap, clearEphemeralKeyForGiftWrap } from "./utils/crypto";
 import { unwrapGift } from "./utils/unwrap";
 import { getAllowedRecipientPubkeys } from "./utils/recipientStore";
 import { ASSET_BLOB_KIND, ASSET_KEY_RUMOR_KIND, ensureAssetKeysForRecipients } from "./utils/assets";
@@ -131,14 +131,22 @@ export function App() {
 
     if (event.kind === 1059) {
       const secretKey = nostrService.getSecretKey();
-      if (!secretKey) return;
-      const rumor = unwrapGift(event.rawEvent ? event.rawEvent() : event, secretKey);
-      if (!rumor || rumor.kind === ASSET_KEY_RUMOR_KIND) return;
-      noteSlug = rumor.tags?.find((t: string[]) => t[0] === "d")?.[1] || "untitled";
-      noteContent = rumor.content;
-      eventPubkey = rumor.pubkey;
-      createdAt = rumor.created_at || createdAt;
-      isNotePrivate = true;
+      if (!secretKey) {
+        // NIP-07 kullanıcısı - gift wrap'i çözemiyoruz ama event'i kaydet
+        isNotePrivate = true;
+        noteContent = event.content;
+        noteSlug = "untitled";
+        eventPubkey = event.pubkey;
+        createdAt = event.created_at || Math.floor(Date.now() / 1000);
+      } else {
+        const rumor = unwrapGift(event.rawEvent ? event.rawEvent() : event, secretKey);
+        if (!rumor || rumor.kind === ASSET_KEY_RUMOR_KIND) return;
+        noteSlug = rumor.tags?.find((t: string[]) => t[0] === "d")?.[1] || "untitled";
+        noteContent = rumor.content;
+        eventPubkey = rumor.pubkey;
+        createdAt = rumor.created_at || createdAt;
+        isNotePrivate = true;
+      }
     } else {
       noteSlug = event.tagValue("d") || "untitled";
       isNotePrivate = event.getMatchingTags("private").length > 0;
@@ -303,6 +311,8 @@ export function App() {
 
       let savedItem: NoteItem;
 
+        // Clear any existing ephemeral key to ensure deterministic behavior across saves
+        clearEphemeralKeyForGiftWrap();
       if (isPrivate && userSecretKey) {
         await ensureAssetKeysForRecipients(content, userSecretKey);
         const recipientPubkeys = getAllowedRecipientPubkeys();

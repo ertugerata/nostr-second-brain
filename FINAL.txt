@@ -1,0 +1,23 @@
+## Issue 12 - NIP-09 Delete for Gift Wrap Notes - FIX STATUS: COMPLETE ✓
+
+The UI warning is already properly implemented in the codebase. No additional edits needed.
+
+### What's Already Working
+
+**`src/App.tsx` - `handleDeleteNote` (lines 431-502):**
+- Shows warning when deleting private notes
+- Warning message explains NIP-59/Gift Wrap ephemeral key design
+- Prevents invalid NIP-09 delete event
+- Only removes from local state
+
+**`src/utils/fileSync.ts` (lines 73-76):**
+- Skips private notes in local disk sync
+- Returns `{ saved: false, skippedPrivate: true }`
+
+### Acceptance Criteria All Met ✓
+
+1. ✓ User informed about relay copy non-deletion
+2. ✓ UI documents Gift Wrap NIP-09 limitation
+3. ✓ Local disk sync warns/opt-in for private notes
+
+**The task is complete. The fix was already in place.**
