@@ -351,17 +351,18 @@ export class NostrService {
       });
     };
   }
-
-  /**
-   * NIP-09 Deletion Event (kind: 5)
-   * Belirtilen event veya parametrik adreslenebilir (addressable) not için silme talebi yayınlar.
-   */
-  // NIP-07 signer'i kontrol et: Gift Wrap (kind: 1059) notlar için NIP-09 silme desteklenmiyor
-  if (this.isNip07Signer()) {
-    console.warn("NIP-07 ile oturum açmışsınız: Gift Wrap (kind: 1059) notları relay'lerde NIP-09 ile silinemez. Yerel görünüm sadece güncellenecek.");
-    return;
-  }
-
+  public async deleteEvent(eventId: string, noteSlug?: string, reason?: string): Promise<NDKEvent | null> {
+    /**
+     * NIP-09 Deletion Event (kind: 5)
+     * Belirtilen event veya parametrik adreslenebilir (addressable) not için silme talebi yayınlar.
+     */
+    // NIP-07 signer'i kontrol et: Gift Wrap (kind: 1059) notlar için NIP-09 silme desteklenmiyor
+    if (this.isNip07Signer()) {
+      console.warn("NIP-07 ile oturum açmışsınız: Gift Wrap (kind: 1059) notları relay'lerde NIP-09 ile silinemez. Yerel görünüm sadece güncellenecek.");
+      return null;
+    }
+    const deleteEvent = new NDKEvent(this.ndk);
+    deleteEvent.kind = 5;
     const tags: string[][] = [["e", eventId]];
 
     if (this.ndk.signer) {

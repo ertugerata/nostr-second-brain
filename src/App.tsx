@@ -825,7 +825,7 @@ export function App() {
                             e.stopPropagation();
                             handleDeleteNote(note.slug);
                           }}
-                          className="delete-note-btn"
+                          title={note.isPrivate ? "Gizli notu yerel görünümden kaldır (NIP-09 yayınlanmaz)" : "Açık notu sil (NIP-09 yayınlanacak)"}
                           title="Bu notu sil (NIP-09)"
                           style={{
                             background: "none",
