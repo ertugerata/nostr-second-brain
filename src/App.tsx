@@ -132,10 +132,11 @@ export function App() {
     if (event.kind === 1059) {
       const secretKey = nostrService.getSecretKey();
       if (!secretKey) {
-        // NIP-07 kullanıcısı - gift wrap'i çözemiyoruz ama event'i kaydet
+        // NIP-07 kullanıcısı - gift wrap'i çözemiyoruz
+        // Event'i kaybedilmemesi için storage'a kayd et, placeholder göster
         isNotePrivate = true;
-        noteContent = event.content;
-        noteSlug = "untitled";
+        noteContent = "[Gizli not (NIP-07 ile şifrelenmiş) - anahtar bulunamadı, içeriği çözülemedi]";
+        noteSlug = `gizli-${event.id.slice(0, 8)}`;
         eventPubkey = event.pubkey;
         createdAt = event.created_at || Math.floor(Date.now() / 1000);
       } else {
@@ -321,7 +322,7 @@ export function App() {
         let primaryAuthorEventId = "";
 
         for (const targetPk of targetPubkeys) {
-          const giftWrapRaw = createGiftWrap(content, userSecretKey, tags, targetPk);
+          const giftWrapRaw = await createGiftWrap(content, userSecretKey, tags, targetPk);
           const event = new NDKEvent(nostrService.ndk, giftWrapRaw);
 
           if (nostrService.ndk.cacheAdapter) {

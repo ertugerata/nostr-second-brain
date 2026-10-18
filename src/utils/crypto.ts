@@ -20,13 +20,13 @@ export function decryptContent(ciphertext: string, secretKey: Uint8Array, sender
 // NIP-44 plaintext limiti 65535 bayttır (~64KB); bu yüzden innerEventContent HER ZAMAN
 // küçük olmalıdır (not metni veya bir asset AES anahtarı gibi) — büyük ikili veri asla
 // doğrudan buraya verilmemelidir.
-export function createGiftWrap(
+export async function createGiftWrap(
   innerEventContent: string,
   userSecretKey: Uint8Array,
   tags: string[][] = [["private", "true"]],
   recipientPubkey?: string,
   rumorKind: number = 30818
-): any {
+): Promise<any> {
   const userPubkey = getPublicKey(userSecretKey);
   const targetPubkey = recipientPubkey || userPubkey;
 
@@ -54,7 +54,7 @@ export function createGiftWrap(
     tags: [],
   }, userSecretKey);
 
-  // 3. Gift Wrap (kind: 1059): Deterministic ephemeral key from user secret key
+  // 3. Gift Wrap (kind: 1059): Derinmistic ephemeral key from user secret key
   // Hash userSecretKey to derive a consistent ephemeral key enabling NIP-09 deletion
   // ÖNEMLİ: Ephemeral (geçici) key DEĞİL, userSecretKey hash'lenerek kullanılıyor!
   // Bu sayede:
@@ -71,6 +71,21 @@ export function createGiftWrap(
   }, ephemeralSecretKey);
 
   return giftWrapEvent;
+}
+
+// Helper: Store ephemeral key for current session (for unwrap operations)
+const ephemeralKeyStore: Record<string, Uint8Array> = {};
+
+export function setEphemeralKeyForGiftWrap(userPubkey: string, ephemeralKey: Uint8Array): void {
+  ephemeralKeyStore[userPubkey] = ephemeralKey;
+}
+
+export function getEphemeralKeyForGiftWrap(userPubkey: string): Uint8Array | undefined {
+  return ephemeralKeyStore[userPubkey];
+}
+
+export function clearEphemeralKeyForGiftWrap(): void {
+  Object.keys(ephemeralKeyStore).forEach(key => delete ephemeralKeyStore[key]);
 }
 
 // Deterministic ephemeral key derivation from user secret key (for NIP-59 Gift Wrap consistency)
