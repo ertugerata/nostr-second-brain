@@ -1,6 +1,6 @@
 [package]
 name = "nostr-second-brain"
-version = "0.1.0"
+version = "0.2.0"
 description = "Nostr Second Brain Desktop Application"
 authors = ["you"]
 license = ""

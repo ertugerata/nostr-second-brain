@@ -1,4 +1,4 @@
-# Nostr Second Brain (MVP) 🧠
+# Nostr Second Brain (v0.2.0) 🧠
 
 > Veri mülkiyetini tam olarak kullanıcıya devreden, **Offline-First** mimaride ve **Nostr Protokolü** üzerinde çalışan merkezsiz kişisel bilgi yönetim / ikinci beyin uygulaması.
 
@@ -8,6 +8,7 @@
 
 - 🔓 **Sıfır Lock-in (Tam Veri Mülkiyeti):** Notlarınız merkezi bir sunucuda kilitli kalmaz. Verileriniz Nostr event'leri olarak sizin tarafınızdan imzalanır ve seçtiğiniz relay'lerde saklanır.
 - ⚡ **Offline-First Mimari ve Depolama:** Veriler varsayılan olarak `IndexedDB` (`@nostr-dev-kit/ndk-cache-dexie`) üzerinde saklanır. Sayfa açılışlarında relay yanıtı beklenmez, veriler milisaniyeler içinde yerel önbellekten ekrana getirilir. Ağ bağlantısı olmasa dahi not yazılabilir ve düzenlenebilir.
+- 📝 **Gelişmiş Editör & Canlı Önizleme (Split-View & Autocomplete):** Markdown editöründe Düzenle, Önizleme ve Yan Yana (Split-View) modları; düzenleyici ile önbinde çift yönlü orantılı kaydırma (synced scrolling) ve `[[` yazıldığında mevcut notları öneren anlık Wikilink otomatik tamamlama (autocomplete) desteği sunulur.
 - 📁 **Yerel Klasör Otomatik Senkronizasyonu (Local File Sync):** Web File System Access API (`showDirectoryPicker`) veya Tauri masaüstü ortamında seçtiğiniz bir klasör ile notlar `.md` (YAML Frontmatter ile) ve eklenen medya/dosyalar `assets/` alt klasörü (Logseq stili) olarak çift yönlü / anlık eşitlenir.
 - 📎 **AES-256-GCM Zarf Şifreli Asset/Medya Eklentileri:** Editördeki 📎 butonu ile JPG, PNG, PDF (8MB'a kadar) dosyaları `asset:<id>` söz dizimiyle notlara eklenebilir. Asset'ler AES-256-GCM zarf şifreleme ve NIP-59 anahtar dağıtımı ile korunur; ilgili gizli notun alıcı listesiyle aynı gizlilik garantisine sahiptir.
 - 🔗 **NIP-54 Wiki & Wikilink Desteği:** Notlar içinde `[[Not Başlığı]]` veya `[[slug|Görünen İsim]]` formatında bağlantılar oluşturulabilir.
@@ -192,6 +193,7 @@ nostr-second-brain/
 │   ├── nostr.test.ts        # Nostr servis birim testleri
 │   ├── components/
 │   │   ├── AssetView.tsx    # asset:<id> medya şifre çözme ve işleme bileşeni
+│   │   ├── Editor.tsx       # Split-view, senkronize kaydırma, wikilink autocomplete ve not düzenleme bileşeni
 │   │   ├── KeyLoginForm.tsx # NIP-49 Parola ile giriş ve anahtar kasası formu
 │   │   ├── MarkdownToolbar.tsx # Editör formatlama ve 📎 asset yükleme araç çubuğu
 │   │   ├── RelayStatusIndicator.tsx # Bağlı relay durumu ve canlı istatistik göstergesi
@@ -199,6 +201,7 @@ nostr-second-brain/
 │   │   ├── SimpleGraphView.tsx # react-force-graph ile Obsidian tarzı 2D/3D interaktif ağ haritası
 │   │   ├── VersionHistoryModal.tsx # Not versiyon geçmişi ve geri yükleme penceresi
 │   │   └── WikiContent.tsx  # Metin içindeki [[Wikilink]] parser ve buton render motoru
+│   ├── lib/                 # Söz dizimi vurgulama (syntax highlighting) kütüphaneleri
 │   └── utils/
 │       ├── assets.ts        # Asset AES-256-GCM şifreleme, kind 31736/31737 event üretimi ve IndexedDB önbelleği
 │       ├── assets.test.ts   # Asset modülü birim testleri
