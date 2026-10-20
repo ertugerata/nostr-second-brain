@@ -3,7 +3,7 @@ import { uploadAsset, ALLOWED_ASSET_MIME_TYPES } from "../utils/assets";
 
 interface MarkdownToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
-  setContent: React.Dispatch<React.SetStateAction<string>>;
+  setContent: (value: string) => void;
   // YENİ: asset yükleme için gerekli bağlam
   isPrivate: boolean;
   userSecretKey: Uint8Array | null;

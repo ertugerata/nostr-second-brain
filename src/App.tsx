@@ -2,8 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 import { nostrService } from "./nostr";
-import { WikiContent } from "./components/WikiContent";
-import { MarkdownToolbar } from "./components/MarkdownToolbar";
 import { Editor } from "./components/Editor";
 
 const SimpleGraphView = React.lazy(() => import("./components/SimpleGraphView"));
@@ -77,7 +75,6 @@ export function App() {
   const deletedCoordinatesRef = useRef<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleIncomingEvent = (event: NDKEvent) => {
     if (event.kind === ASSET_BLOB_KIND) return;
