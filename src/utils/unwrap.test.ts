@@ -54,9 +54,9 @@ describe("unwrapGift & Security Tests", () => {
     expect(p2pDecrypted).toBe("Secret for peer");
   });
 
-  it("unwraps a valid Gift Wrap event successfully", () => {
+  it("unwraps a valid Gift Wrap event successfully", async () => {
     const userSecretKey = generateSecretKey();
-    const giftWrap = createGiftWrap("Test Secret Content", userSecretKey, [["d", "secret-slug"]]);
+    const giftWrap = await createGiftWrap("Test Secret Content", userSecretKey, [["d", "secret-slug"]]);
 
     const rumor = unwrapGift(giftWrap, userSecretKey);
     expect(rumor).not.toBeNull();
@@ -64,13 +64,13 @@ describe("unwrapGift & Security Tests", () => {
     expect(rumor.pubkey).toBe(getPublicKey(userSecretKey));
   });
 
-  it("unwraps Gift Wrap created for specified recipient pubkey", () => {
+  it("unwraps Gift Wrap created for specified recipient pubkey", async () => {
     const senderSecretKey = generateSecretKey();
     const recipientSecretKey = generateSecretKey();
     const recipientPubkey = getPublicKey(recipientSecretKey);
     const eveSecretKey = generateSecretKey();
 
-    const giftWrap = createGiftWrap(
+    const giftWrap = await createGiftWrap(
       "Özel Paylaşılan Not İçeriği",
       senderSecretKey,
       [["d", "shared-private-note"]],

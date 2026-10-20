@@ -155,7 +155,7 @@ export async function uploadAsset({ file, userSecretKey, isPrivate, filename }: 
     const keyPayload = JSON.stringify({ assetId, key: aesKeyBase64 });
 
     for (const targetPk of targetPubkeys) {
-      const giftWrapRaw = createGiftWrap(
+      const giftWrapRaw = await createGiftWrap(
         keyPayload,
         userSecretKey,
         [["asset-id", assetId], ["private", "true"]],
@@ -409,7 +409,7 @@ export async function ensureAssetKeysForRecipients(content: string, userSecretKe
     const keyPayload = JSON.stringify({ assetId, key: aesKeyBase64 });
 
     for (const targetPk of targetPubkeys) {
-      const giftWrapRaw = createGiftWrap(
+      const giftWrapRaw = await createGiftWrap(
         keyPayload,
         userSecretKey,
         [["asset-id", assetId], ["private", "true"]],
