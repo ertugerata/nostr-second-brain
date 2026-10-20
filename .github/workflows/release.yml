@@ -1,4 +1,4 @@
-name: Release & Publish MVP 0.1.0
+name: Release & Publish v0.2.0
 
 on:
   push:
@@ -39,12 +39,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: nostr-second-brain-web-dist.tar.gz
-          name: Nostr Second Brain v0.1.0 (MVP)
+          name: Nostr Second Brain v0.2.0
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
-            ## 🧠 Nostr Second Brain v0.1.0 (MVP Release)
+            ## 🧠 Nostr Second Brain v0.2.0 Release
 
             Veri mülkiyetini kullanıcılara devreden, Offline-First mimaride ve Nostr Protokolü üzerinde çalışan merkezsiz kişisel bilgi yönetim / ikinci beyin uygulaması.
 
