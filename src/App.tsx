@@ -4,6 +4,7 @@ import { nip19 } from "nostr-tools";
 import { nostrService } from "./nostr";
 import { WikiContent } from "./components/WikiContent";
 import { MarkdownToolbar } from "./components/MarkdownToolbar";
+import { Editor } from "./components/Editor";
 
 const SimpleGraphView = React.lazy(() => import("./components/SimpleGraphView"));
 import { KeyLoginForm } from "./components/KeyLoginForm";
@@ -1047,127 +1048,27 @@ export function App() {
               </div>
             </div>
 
-            <form onSubmit={handleSaveNote} className="editor-form">
-              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                <input
-                  type="text"
-                  placeholder="Not Başlığı (Slug)..."
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="title-input"
-                  style={{ flex: 1 }}
-                  required
-                />
-                {currentSlugVersions.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowVersionModal(true)}
-                    className="history-btn"
-                    title="Bu notun versiyon geçmişini gör"
-                    style={{
-                      padding: "12px 14px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      backgroundColor: "var(--bg-secondary)",
-                      color: "var(--text-primary)",
-                      border: "1px solid var(--input-border)",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    📜 Versiyonlar ({currentSlugVersions.length})
-                  </button>
-                )}
-              </div>
-
-              <div className={`editor-body-area ${previewMode === "split" ? "is-split" : ""}`}>
-                {(previewMode === "edit" || previewMode === "split") && (
-                  <div className="editor-input-wrapper">
-                    <MarkdownToolbar
-                      textareaRef={textareaRef}
-                      setContent={setContent}
-                      isPrivate={isPrivate}
-                      userSecretKey={nostrService.getSecretKey()}
-                    />
-                    <textarea
-                      ref={textareaRef}
-                      placeholder="Not içeriğinizi Markdown formatında yazın... [[Diğer Not]] referansı verebilirsiniz."
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      className="content-input"
-                      required
-                    />
-                  </div>
-                )}
-
-                {(previewMode === "preview" || previewMode === "split") && (
-                  <div className="preview-box">
-                    <div className="preview-title">ÖNİZLEME (Markdown / NIP-54 Rendered)</div>
-                    {content.trim() ? (
-                      <WikiContent content={content} onNavigate={(selectedSlug) => handleSelectNote(selectedSlug)} />
-                    ) : (
-                      <p style={{ color: "var(--text-muted)", fontSize: "14px", fontStyle: "italic" }}>
-                        Önizleme için içeriği girin veya bir .md dosyası yükleyin...
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="form-actions">
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={isPrivate}
-                      onChange={(e) => setIsPrivate(e.target.checked)}
-                    />
-                    🔒 NIP-44/59 Gizli Not (Gift Wrap)
-                  </label>
-                  {isPrivate && (
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "22px", maxWidth: "450px", lineHeight: "1.3" }}>
-                      ℹ️ Gizli notlar NIP-59 Gift Wrap (ephemeral key) ile şifrelenir. Ephemeral imzalar nedeniyle relay'lerdeki kopyalar NIP-09 ile silinemez; silme işlemi yalnızca yerel görünümünüzü temizler.
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {notes.has(slugify(slug)) && notes.get(slugify(slug))?.pubkey === currentUserPubkey && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteNote(slugify(slug))}
-                      className="delete-btn"
-                      style={{
-                        backgroundColor: "#dc2626",
-                        color: "#ffffff",
-                        border: "none",
-                        padding: "8px 14px",
-                        borderRadius: "6px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      🗑️ Notu Sil
-                    </button>
-                  )}
-
-                  {content.trim().length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentNote}
-                      className="export-btn"
-                    >
-                      📥 Dışarı Aktar (.md)
-                    </button>
-                  )}
-
-                  <button type="submit" className="save-btn">
-                    Kaydet & İmzala
-                  </button>
-                </div>
-              </div>
-            </form>
+<Editor
+  notes={notes}
+  currentContent={content}
+  currentSlug={slug}
+  onContentChange={setContent}
+  onSlugChange={setSlug}
+  previewMode={previewMode}
+  onPreviewModeChange={setPreviewMode}
+  isPrivate={isPrivate}
+  onIsPrivateChange={setIsPrivate}
+  showVersionModal={showVersionModal}
+  onShowVersionModalChange={setShowVersionModal}
+  currentSlugVersions={currentSlugVersions}
+  userSecretKey={nostrService.getSecretKey()}
+  onAssetButtonClick={() => fileInputRef.current?.click()}
+  onExportNote={handleExportCurrentNote}
+  onDeleteNote={handleDeleteNote}
+  onSave={handleSaveNote}
+  onNavigatePreview={handleSelectNote}
+  canDelete={notes.has(slugify(slug)) && notes.get(slugify(slug))?.pubkey === currentUserPubkey}
+/>
           </div>
         )}
 
