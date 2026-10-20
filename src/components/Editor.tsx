@@ -1,8 +1,7 @@
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { WikiContent } from "./WikiContent";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 import { NoteItem } from "../utils/exportUtils";
-import { slugify } from "../utils/wikilink";
 
 interface EditorProps {
   notes: Map<string, NoteItem>;
@@ -11,14 +10,14 @@ interface EditorProps {
   onContentChange: (c: string) => void;
   onSlugChange: (s: string) => void;
   previewMode: "edit" | "preview" | "split";
-  onPreviewModeChange: (m: "edit" | "preview" | "split") => void;
+  onPreviewModeChange?: (m: "edit" | "preview" | "split") => void;
   isPrivate: boolean;
   onIsPrivateChange: (v: boolean) => void;
-  showVersionModal: boolean;
+  showVersionModal?: boolean;
   onShowVersionModalChange: (v: boolean) => void;
   currentSlugVersions: NoteItem[];
-  userSecretKey: string | null;
-  onAssetButtonClick: () => void;
+  userSecretKey: Uint8Array | null;
+  onAssetButtonClick?: () => void;
   onExportNote: () => void;
   onDeleteNote: (slug: string) => void;
   onSave: (e: React.FormEvent) => void;
@@ -33,14 +32,14 @@ export function Editor({
   onContentChange,
   onSlugChange,
   previewMode,
-  onPreviewModeChange,
+  onPreviewModeChange: _onPreviewModeChange,
   isPrivate,
   onIsPrivateChange,
-  showVersionModal,
+  showVersionModal: _showVersionModal,
   onShowVersionModalChange,
   currentSlugVersions,
   userSecretKey,
-  onAssetButtonClick,
+  onAssetButtonClick: _onAssetButtonClick,
   onExportNote,
   onDeleteNote,
   onSave,
@@ -221,7 +220,6 @@ export function Editor({
               setContent={onContentChange}
               isPrivate={isPrivate}
               userSecretKey={userSecretKey}
-              onAssetButtonClick={onAssetButtonClick}
             />
             <textarea
               ref={textareaRef}

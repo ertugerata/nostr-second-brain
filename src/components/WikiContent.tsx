@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { slugify } from "../utils/wikilink";
 import { AssetView } from "./AssetView";
 import { NoteItem } from "../utils/exportUtils";
-import hljs from "./lib/highlight.js";
 
 interface WikiContentProps {
   content: string;
@@ -13,21 +12,15 @@ interface WikiContentProps {
 }
 
 export const WikiContent: React.FC<WikiContentProps> = ({ content, onNavigate, notes }) => {
-  const highlightCode = (code: string, language?: string) => {
-    try {
-      const languageName = language && language.startsWith("language-") ? language.slice(9) : language;
-      const result = hljs.highlight(code, { language: languageName || "plaintext" });
-      return { __html: result.value };
-    } catch {
-      return {
-        __html: code
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#x27;"),
-      };
-    }
+  const highlightCode = (code: string, _language?: string) => {
+    return {
+      __html: code
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#x27;"),
+    };
   };
 
   const preprocessWikilinks = (text: string): string => {
@@ -42,15 +35,15 @@ export const WikiContent: React.FC<WikiContentProps> = ({ content, onNavigate, n
   const formattedContent = preprocessWikilinks(content);
 
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleWikilinkHover = (slug: string) => {
-    clearTimeout(hoverTimeoutRef.current);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     hoverTimeoutRef.current = setTimeout(() => setHoveredSlug(slug), 200);
   };
 
   const handleWikilinkLeave = () => {
-    clearTimeout(hoverTimeoutRef.current);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setHoveredSlug(null);
   };
 
