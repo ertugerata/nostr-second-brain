@@ -10,19 +10,39 @@ interface EditorProps {
   onContentChange: (c: string) => void;
   onSlugChange: (s: string) => void;
   previewMode: "edit" | "preview" | "split";
-  onPreviewModeChange?: (m: "edit" | "preview" | "split") => void;
   isPrivate: boolean;
   onIsPrivateChange: (v: boolean) => void;
-  showVersionModal?: boolean;
   onShowVersionModalChange: (v: boolean) => void;
   currentSlugVersions: NoteItem[];
   userSecretKey: Uint8Array | null;
-  onAssetButtonClick?: () => void;
   onExportNote: () => void;
   onDeleteNote: (slug: string) => void;
   onSave: (e: React.FormEvent) => void;
   onNavigatePreview: (slug: string) => void;
   canDelete: boolean;
+}
+
+/**
+ * Wikilink入れ札daki `[[slug]]` 삽입 işlemlerini (keyboard Enter/Tab + autocomplete click)
+ * tek bir pure helper'a çıkardık. cursor reposition mantığı da burada konsolid.
+ */
+function applyWikilinkReplacement(
+  content: string,
+  cursorPos: number,
+  selectedSlug: string,
+): { newContent: string; insertPos: number } | null {
+  const textBeforeCursor = content.slice(0, cursorPos);
+  const textAfterCursor = content.slice(cursorPos);
+  const lastOpeningBracket = textBeforeCursor.lastIndexOf("[[");
+/**
+ * Wikilink挿入處理中的 `[[slug]]` 插入邏輯（鍵盤 Enter/Tab + 自動完成點擊）
+ * 提取為單一 pure helper。光標重置邏輯也在此統一。
+ */
+export function applyWikilinkReplacement(
+
+  const replacement = "[[" + selectedSlug + "]]";
+  const newContent = textBeforeCursor.slice(0, lastOpeningBracket) + replacement + textAfterCursor;
+  return { newContent, insertPos: lastOpeningBracket + replacement.length };
 }
 
 export function Editor({
@@ -32,14 +52,11 @@ export function Editor({
   onContentChange,
   onSlugChange,
   previewMode,
-  onPreviewModeChange: _onPreviewModeChange,
   isPrivate,
   onIsPrivateChange,
-  showVersionModal: _showVersionModal,
   onShowVersionModalChange,
   currentSlugVersions,
   userSecretKey,
-  onAssetButtonClick: _onAssetButtonClick,
   onExportNote,
   onDeleteNote,
   onSave,
@@ -117,19 +134,14 @@ export function Editor({
       e.preventDefault();
       const selected = autocompleteItems[autocompleteIndex];
       const cursorPos = textareaRef.current?.selectionStart ?? 0;
-      const textBeforeCursor = currentContent.slice(0, cursorPos);
-      const textAfterCursor = currentContent.slice(cursorPos);
-      const lastOpeningBracket = textBeforeCursor.lastIndexOf("[[");
-      if (lastOpeningBracket !== -1) {
-        const replacement = "[[" + selected.slug + "]]";
-        const newContent = textBeforeCursor.slice(0, lastOpeningBracket) + replacement + textAfterCursor;
-        onContentChange(newContent);
+      const result = applyWikilinkReplacement(currentContent, cursorPos, selected.slug);
+      if (result) {
+        onContentChange(result.newContent);
         setShowAutocomplete(false);
         setTimeout(() => {
           const textarea = textareaRef.current;
           if (textarea) {
-            const newPos = lastOpeningBracket + replacement.length;
-            textarea.setSelectionRange(newPos, newPos);
+            textarea.setSelectionRange(result.insertPos, result.insertPos);
           }
         }, 0);
       }
@@ -139,37 +151,43 @@ export function Editor({
     }
   };
 
+  /**
+   * Autocomplete dropdown pozisyonu — hardcoded approxCharWidth/approxLineHeight
+   * yerine textarea'dan gerçek yüksekliği, computed font-size'dan karakter genişliğini al.
+   */
   const getAutocompletePosition = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return { top: 0, left: 0 };
+
     const cursorPos = textarea.selectionStart ?? 0;
     const textBeforeCursor = currentContent.slice(0, cursorPos);
     const lines = textBeforeCursor.split("\n");
     const lineIndex = lines.length - 1;
     const charsInLine = lines[lineIndex].length;
-    const approxLineHeight = 24;
-    const approxCharWidth = 8;
+
+    const linesCount = textarea.value.split("\n").length || 1;
+    const lineHeight = textarea.clientHeight / linesCount;
+
+    const style = window.getComputedStyle(textarea);
+    const fontSize = parseFloat(style.fontSize) || 16;
+    const charWidth = fontSize * 0.6; // yaklaşık karakter genişliği
+
     return {
-      top: (lineIndex + 1) * approxLineHeight + 4,
-      left: Math.min(charsInLine * approxCharWidth, textarea.clientWidth - 220),
+      top: (lineIndex + 1) * lineHeight + 4,
+      left: Math.min(charsInLine * charWidth, textarea.clientWidth - 220),
     };
   }, [currentContent]);
 
   const insertSelectedWikilink = (selected: { slug: string }) => {
     const cursorPos = textareaRef.current?.selectionStart ?? 0;
-    const textBeforeCursor = currentContent.slice(0, cursorPos);
-    const textAfterCursor = currentContent.slice(cursorPos);
-    const lastOpeningBracket = textBeforeCursor.lastIndexOf("[[");
-    if (lastOpeningBracket !== -1) {
-      const replacement = "[[" + selected.slug + "]]";
-      const newContent = textBeforeCursor.slice(0, lastOpeningBracket) + replacement + textAfterCursor;
-      onContentChange(newContent);
+    const result = applyWikilinkReplacement(currentContent, cursorPos, selected.slug);
+    if (result) {
+      onContentChange(result.newContent);
       setShowAutocomplete(false);
       setTimeout(() => {
         const textarea = textareaRef.current;
         if (textarea) {
-          const newPos = lastOpeningBracket + replacement.length;
-          textarea.setSelectionRange(newPos, newPos);
+          textarea.setSelectionRange(result.insertPos, result.insertPos);
         }
       }, 0);
     }

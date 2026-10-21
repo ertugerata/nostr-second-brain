@@ -3,6 +3,7 @@ import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 import { nostrService } from "./nostr";
 import { Editor } from "./components/Editor";
+import { NoteEditorContainer } from "./containers/NoteEditorContainer";
 
 const SimpleGraphView = React.lazy(() => import("./components/SimpleGraphView"));
 import { KeyLoginForm } from "./components/KeyLoginForm";
@@ -1044,27 +1045,17 @@ export function App() {
               </div>
             </div>
 
-<Editor
+<NoteEditorContainer
   notes={notes}
-  currentContent={content}
-  currentSlug={slug}
-  onContentChange={setContent}
-  onSlugChange={setSlug}
-  previewMode={previewMode}
-  onPreviewModeChange={setPreviewMode}
-  isPrivate={isPrivate}
-  onIsPrivateChange={setIsPrivate}
-  showVersionModal={showVersionModal}
-  onShowVersionModalChange={setShowVersionModal}
-  currentSlugVersions={currentSlugVersions}
-  userSecretKey={nostrService.getSecretKey()}
-  onAssetButtonClick={() => fileInputRef.current?.click()}
-  onExportNote={handleExportCurrentNote}
+  noteHistory={noteHistory}
+  currentUserPubkey={currentUserPubkey}
+  onSaveNote={handleSaveNote}
   onDeleteNote={handleDeleteNote}
-  onSave={handleSaveNote}
+  onExportNote={handleExportCurrentNote}
   onNavigatePreview={handleSelectNote}
-  canDelete={notes.has(slugify(slug)) && notes.get(slugify(slug))?.pubkey === currentUserPubkey}
+  onShowVersionModalChange={setShowVersionModal}
 />
+:
           </div>
         )}
 
