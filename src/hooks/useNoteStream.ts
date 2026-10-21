@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nostrService } from "../nostr";
+import { KeyStoreService } from "../utils/keyStore";
 
 /**
  * useNoteStream: nostr relay subscription lifecycle (bağlantı, signer user
@@ -42,7 +43,7 @@ export function useNoteStream(
     };
 
     // isAuthenticated veya stored key yoksa backdrop'ten init
-    if (isAuthenticated || !nostrService.hasStoredKey()) {
+    if (isAuthenticated || !KeyStoreService.hasStoredKey()) {
       init();
     }
   }, [isAuthenticated, onEvent, setReady, setCurrentUserPubkey]);
@@ -64,8 +65,6 @@ export function loadMoreNotes({
   setIsLoadingMore,
   onEvent,
 }: LoadMoreNotesParams) {
-  const state = nostrService.getState?.();
-  if (state?.loadingMore) return;
 
   const allNotes = Array.from(notes.values());
   const oldestTimestamp =
