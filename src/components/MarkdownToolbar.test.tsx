@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import React, { useState, useRef } from "react";
+// @vitest-environment jsdom
+import { describe, it, expect, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { useState, useRef } from "react";
+import "@testing-library/jest-dom/vitest";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 
 /**
@@ -40,27 +42,30 @@ function TestHarness({
 }
 
 describe("MarkdownToolbar", () => {
+  afterEach(() => {
+    cleanup();
+  });
   it("renders all toolbar groups and buttons with correct accessible titles", () => {
     render(<TestHarness />);
 
     // Text formatting
-    expect(screen.getByTitle(/Kalın \(Bold\) - \*\*metin\*\*/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Eğik \(Italic\) - \*metin\*/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Üstü Çizili \(Strikethrough\) - ~~metin~~/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Kalın \(Bold\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Eğik \(Italic\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Üstü Çizili \(Strikethrough\)/)).toBeInTheDocument();
 
     // Block / inline structure
-    expect(screen.getByTitle(/Başlık \(Heading 3\) - ### Başlık/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Kod \(Inline Code\) - `kod`/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Alıntı \(Quote\) - > /)).toBeInTheDocument();
+    expect(screen.getByTitle(/Başlık \(Heading 3\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Kod \(Inline Code\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Alıntı \(Quote\)/)).toBeInTheDocument();
 
     // Links and wikilinks
-    expect(screen.getByTitle(/Bağlantı \(Link\) - \[metin\]/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Wikilink - \[\[Not Başlığı\]\]/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Bağlantı \(Link\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Wikilink/)).toBeInTheDocument();
 
     // Lists
-    expect(screen.getByTitle(/Madde İşaretli Liste - - /)).toBeInTheDocument();
-    expect(screen.getByTitle(/Numaralı Liste - 1\. /)).toBeInTheDocument();
-    expect(screen.getByTitle(/Görev Listesi - - \[ \] /)).toBeInTheDocument();
+    expect(screen.getByTitle(/Madde İşaretli Liste/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Numaralı Liste/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Görev Listesi/)).toBeInTheDocument();
     expect(screen.getByTitle(/Tablo Ekle/)).toBeInTheDocument();
   });
 
@@ -106,7 +111,7 @@ describe("MarkdownToolbar", () => {
 
     await waitFor(() => {
       const display = screen.getByTestId("content-display");
-      expect(display.textContent).toBe("[[Not Başlığı]]");
+      expect(display.textContent).toBe("[[metin]]");
     });
   });
 

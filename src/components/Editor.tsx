@@ -26,7 +26,7 @@ interface EditorProps {
  * Wikilink入れ札daki `[[slug]]` 삽입 işlemlerini (keyboard Enter/Tab + autocomplete click)
  * tek bir pure helper'a çıkardık. cursor reposition mantığı da burada konsolid.
  */
-function applyWikilinkReplacement(
+export function applyWikilinkReplacement(
   content: string,
   cursorPos: number,
   selectedSlug: string,
@@ -34,11 +34,7 @@ function applyWikilinkReplacement(
   const textBeforeCursor = content.slice(0, cursorPos);
   const textAfterCursor = content.slice(cursorPos);
   const lastOpeningBracket = textBeforeCursor.lastIndexOf("[[");
-/**
- * Wikilink挿入處理中的 `[[slug]]` 插入邏輯（鍵盤 Enter/Tab + 自動完成點擊）
- * 提取為單一 pure helper。光標重置邏輯也在此統一。
- */
-export function applyWikilinkReplacement(
+  if (lastOpeningBracket === -1) return null;
 
   const replacement = "[[" + selectedSlug + "]]";
   const newContent = textBeforeCursor.slice(0, lastOpeningBracket) + replacement + textAfterCursor;

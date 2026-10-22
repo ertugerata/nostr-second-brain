@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Editor } from "./Editor";
+import { Editor } from "../components/Editor";
 import { NoteItem } from "../utils/exportUtils";
 import { slugify } from "../utils/wikilink";
+import { nostrService } from "../nostr";
 
 /**
  * NoteEditorContainer: editor tarafının state'leri + render'ı.
@@ -33,8 +34,7 @@ export function NoteEditorContainer({
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "split">("edit");
-  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [previewMode] = useState<"edit" | "preview" | "split">("edit");
 
   /**
    * currentSlugVersions: verilen slug için noteHistory + notes'tan versiyon listesi.
@@ -48,6 +48,10 @@ export function NoteEditorContainer({
     );
   }, [slug, notes, noteHistory]);
 
+  const userSecretKey = nostrService.getSecretKey();
+  const currentNote = notes.get(slugify(slug));
+  const canDelete = !!(currentNote && currentNote.pubkey && currentNote.pubkey === currentUserPubkey);
+
   return (
     <div>
       <Editor
@@ -57,22 +61,17 @@ export function NoteEditorContainer({
         onContentChange={setContent}
         onSlugChange={setSlug}
         previewMode={previewMode}
-        onPreviewModeChange={setPreviewMode}
         isPrivate={isPrivate}
         onIsPrivateChange={setIsPrivate}
-        showVersionModal={showVersionModal}
-        onShowVersionModalChange={setShowVersionModal}
+        onShowVersionModalChange={onShowVersionModalChange}
         currentSlugVersions={currentSlugVersions}
-        currentUserPubkey={currentUserPubkey}
+        userSecretKey={userSecretKey}
         onSave={onSaveNote}
         onDeleteNote={onDeleteNote}
         onExportNote={onExportNote}
         onNavigatePreview={onNavigatePreview}
-        canDelete={false}
+        canDelete={canDelete}
       />
-      {/* VersionHistoryModal: modal açma/kapama state'i burada yönetilir,
-          modal kısmı halihazırda App.tsx'te render edilmektedir — progressive
-          migration için container'a eklenebilir. */}
     </div>
   );
 }

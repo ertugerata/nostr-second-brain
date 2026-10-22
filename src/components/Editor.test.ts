@@ -3,14 +3,14 @@ import { applyWikilinkReplacement } from "./Editor";
 
 describe("applyWikilinkReplacement", () => {
   it("inserts wikilink at cursor immediately after [[ prefix", () => {
-    // cursorPos 9 = right after the two opening brackets
-    const content = "Merhaba [["; // length 9
+    // cursorPos = right after the two opening brackets
+    const content = "Merhaba [["; // length 10
     const cursorPos = content.length;
     const result = applyWikilinkReplacement(content, cursorPos, "diğer-not");
 
     expect(result).toEqual({
       newContent: "Merhaba [[diğer-not]]",
-      insertPos: 22, // lastOpeningBracket(9) + replacement length("[["=2 + "diğer-not"=9 + "]]"=2) = 22
+      insertPos: 21, // lastOpeningBracket(8) + replacement length("[["=2 + "diğer-not"=9 + "]]"=2 = 13) = 21
     });
   });
 

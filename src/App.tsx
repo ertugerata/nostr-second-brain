@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 import { nostrService } from "./nostr";
-import { Editor } from "./components/Editor";
 import { NoteEditorContainer } from "./containers/NoteEditorContainer";
 
 const SimpleGraphView = React.lazy(() => import("./components/SimpleGraphView"));
@@ -1055,7 +1054,6 @@ export function App() {
   onNavigatePreview={handleSelectNote}
   onShowVersionModalChange={setShowVersionModal}
 />
-:
           </div>
         )}
 
