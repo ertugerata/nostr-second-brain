@@ -1,0 +1,7 @@
+{
+  "name": "Nostr Second Brain",
+  "description": "A decentralized, peer-to-peer knowledge graph and note-taking second brain powered by Nostr.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

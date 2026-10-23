@@ -32,7 +32,7 @@ export class LocalFileSyncService {
   public static async selectLocalDirectory(): Promise<boolean> {
     try {
       if (!('showDirectoryPicker' in window)) {
-        alert("Tarayıcınız File System Access API'yi desteklemiyor.");
+        console.warn("Tarayıcınız File System Access API'yi desteklemiyor.");
         return false;
       }
       this.dirHandle = await (window as any).showDirectoryPicker({
